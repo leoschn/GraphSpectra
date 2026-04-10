@@ -351,11 +351,10 @@ class SpectraGraphDataset(Dataset):
     def __getitem__(self, idx):
         with h5py.File(self.data_source, "r") as f:
             intensity = f["intensities_raw"]
-            sequence = f["sequence_integer"].replace()
+            sequence = f["sequence_integer"]
             precursor_charge_onehot = f["precursor_charge_onehot"]
             f.close()
-        seq_num = sequence[idx].tolist()
-        seq = ''.join(int_to_aa_dict[n] for n in seq_num)
+        seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
         inty = intensity[idx]
         charge_ohe = precursor_charge_onehot[idx]
         charge = np.argmax(charge_ohe)
