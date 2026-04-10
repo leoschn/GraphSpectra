@@ -1,73 +1,140 @@
-from torch_geometric.nn import AttentiveFP
-from data.dataset import *
+import torch
 from torch_geometric.loader import DataLoader
+from tqdm import tqdm
+import wandb
+
+from data.dataset import *
 from model.model import AttentiveFPGraphRegressor
 from model.losses import masked_spectral_distance
+from config import load_args
 
-def train():
+def train(epoch):
     model.train()
     total_loss = 0
 
-    for data in train_loader:
+    pbar = tqdm(train_loader, desc=f"Epoch {epoch:03d} [Train]")
 
+    for data in pbar:
         data = data.to(device)
 
         optimizer.zero_grad()
         out = model(data)
-        loss = masked_spectral_distance(out, data.y.view(BATCH_SIZE, -1))
 
+        loss = masked_spectral_distance(out, data.y.view(data.num_graphs, -1))
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item() * data.num_graphs
 
-    return total_loss / len(train_loader.dataset)
+        # Update progress bar
+        pbar.set_postfix(loss=loss.item())
+
+        # Log per batch (optional, can comment if too verbose)
+        wandb.log({"train_batch_loss": loss.item()})
+
+    epoch_loss = total_loss / len(train_loader.dataset)
+
+    return epoch_loss
+
 
 @torch.no_grad()
-def evaluate(loader):
+def evaluate(loader, split="val"):
     model.eval()
     total_loss = 0
 
-    for data in loader:
+    pbar = tqdm(loader, desc=f"[{split.upper()}]")
+
+    for data in pbar:
         data = data.to(device)
         out = model(data)
 
-        loss = masked_spectral_distance(out, data.y)
+        loss = masked_spectral_distance(out, data.y.view(data.num_graphs, -1))
         total_loss += loss.item() * data.num_graphs
+
+        pbar.set_postfix(loss=loss.item())
 
     return total_loss / len(loader.dataset)
 
 
-if __name__ =='__main__':
+if __name__ == '__main__':
 
-    train_dataset = SpectraGraphDataset(data_source='dataset/traintest_hcd.hdf5',label_type='scarce')
-    val_dataset = SpectraGraphDataset(data_source='dataset/holdout_hcd.hdf5',label_type='scarce')
-    test_dataset = SpectraGraphDataset(data_source='dataset/holdout_hcd.hdf5',label_type='scarce')
-    BATCH_SIZE = 32
+    args = load_args()
+    # -----------------------
+    # WandB init
+    # -----------------------
+    os.environ["WANDB_API_KEY"] = 'b4a27ac6b6145e1a5d0ee7f9e2e8c20bd101dccd'
+    os.environ["WANDB_MODE"] = "offline"
+    os.environ["WANDB_DIR"] = os.path.abspath("./wandb_run")
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+    wandb.init(
+        project="attentivefp-spectra",
+        config={
+            "batch_size": args.batch_size,
+            "lr": args.lr,
+            "epochs": args.epochs,
+            "hidden_dim": 128,
+        }
+    )
 
+    config = wandb.config
 
+    # -----------------------
+    # Data
+    # -----------------------
+    train_dataset = SpectraGraphDataset(
+        data_source=args.dataset_train, label_type='scarce'
+    )
+    val_dataset = SpectraGraphDataset(
+        data_source=args.dataset_val, label_type='scarce'
+    )
+    test_dataset = SpectraGraphDataset(
+        data_source=args.dataset_test, label_type='scarce'
+    )
 
-    model = AttentiveFPGraphRegressor(node_feat_dim=train_dataset.node_dim, edge_feat_dim=train_dataset.edge_dim,
-                                      hidden_dim=128, out_dim=174)
+    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=config.batch_size)
+    test_loader = DataLoader(test_dataset, batch_size=config.batch_size)
 
-
+    # -----------------------
+    # Model
+    # -----------------------
+    model = AttentiveFPGraphRegressor(
+        node_feat_dim=train_dataset.node_dim,
+        edge_feat_dim=train_dataset.edge_dim,
+        hidden_dim=config.hidden_dim,
+        out_dim=174
+    )
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     model = model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
+    # Optional: track gradients & model
+    wandb.watch(model, log="all", log_freq=100)
 
-    for epoch in range(1, 101):
-        train_loss = train()
-        val_loss = evaluate(val_loader)
+    # -----------------------
+    # Training loop
+    # -----------------------
+    for epoch in range(1, config.epochs + 1):
+        train_loss = train(epoch)
+        val_loss = evaluate(val_loader, split="val")
 
         print(f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
 
-    test_loss = evaluate(test_loader)
+        # Log per epoch
+        wandb.log({
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "val_loss": val_loss
+        })
+
+    # -----------------------
+    # Test
+    # -----------------------
+    test_loss = evaluate(test_loader, split="test")
     print("Test Loss:", test_loss)
+
+    wandb.log({"test_loss": test_loss})
+
+    wandb.finish()
