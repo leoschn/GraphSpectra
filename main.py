@@ -61,13 +61,13 @@ if __name__ =='__main__':
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-    #
-    #
-    # for epoch in range(1, 101):
-    #     train_loss = train()
-    #     val_loss = evaluate(val_loader)
-    #
-    #     print(f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
-    #
-    # test_loss = evaluate(test_loader)
-    # print("Test Loss:", test_loss)
+
+
+    for epoch in range(1, 101):
+        train_loss = train()
+        val_loss = evaluate(val_loader)
+
+        print(f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+
+    test_loss = evaluate(test_loader)
+    print("Test Loss:", test_loss)
