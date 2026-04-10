@@ -427,7 +427,7 @@ class SpectraGraphDataset(Dataset):
         self.node_dim = get_node_dim(exclude_feature=None)
         self.edge_dim = get_edge_dim(exclude_feature=None)
         self.f = h5py.File(self.data_source, "r")
-        intensity = f["intensities_raw"]
+        intensity = self.f["intensities_raw"]
         self.length = intensity.shape[0]
 
 
@@ -435,9 +435,9 @@ class SpectraGraphDataset(Dataset):
         return self.length
 
     def __getitem__(self, idx):
-        intensity = f["intensities_raw"]
-        sequence = f["sequence_integer"]
-        precursor_charge_onehot = f["precursor_charge_onehot"]
+        intensity = self.f["intensities_raw"]
+        sequence = self.f["sequence_integer"]
+        precursor_charge_onehot = self.f["precursor_charge_onehot"]
         seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
         inty = intensity[idx]
         charge_ohe = precursor_charge_onehot[idx]
