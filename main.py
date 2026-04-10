@@ -40,9 +40,9 @@ def evaluate(loader):
 
 if __name__ =='__main__':
 
-    train_dataset = SpectraGraphDataset(data_source='dataset_dummy/proteomeTools_train_val.csv',label_type='scarce')
-    val_dataset = train_dataset
-    test_dataset = train_dataset
+    train_dataset = SpectraGraphDataset(data_source='dataset/traintest_hcd.hdf5',label_type='scarce')
+    val_dataset = SpectraGraphDataset(data_source='dataset/holdout_hcd.hdf5',label_type='scarce')
+    test_dataset = SpectraGraphDataset(data_source='dataset/holdout_hcd.hdf5',label_type='scarce')
     BATCH_SIZE = 32
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)

@@ -16,6 +16,34 @@ from rdkit.Chem import Crippen
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import rdPartialCharges
 
+alphabet = [
+    "0",
+    "A",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "K",
+    "L",
+    "M",
+    "N",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "V",
+    "W",
+    "Y",
+]
+
+aa_to_int_dict = dict((aa, i) for i, aa in enumerate(alphabet))
+
+int_to_aa_dict = dict((i, aa) for i, aa in enumerate(alphabet))
+
 #from deepGCN-RT
 atom_features = [
     'chiral_center',# dim 1
@@ -309,10 +337,6 @@ class SpectraGraphDataset(Dataset):
         """
         self.data_source = data_source
         self.label_type = label_type
-        self.data_raw = pd.read_csv(self.data_source)
-        self.seq = self.data_raw['sequence'].to_list()
-        self.intensity = self.data_raw['intensities'].map(lambda x : np.array(ast.literal_eval(x))).to_list()
-        self.charge = self.data_raw['precursor_charge_onehot'].to_list()
         self.node_dim = get_node_dim(exclude_feature=None)
         self.edge_dim = get_edge_dim(exclude_feature=None)
 
@@ -321,9 +345,15 @@ class SpectraGraphDataset(Dataset):
         return len(self.seq)
 
     def __getitem__(self, idx):
-        seq = self.seq[idx]
-        inty = self.intensity[idx]
-        charge_ohe = self.charge[idx]
+        with h5py.File(self.data_source, "r") as f:
+            intensity = f["intensities_raw"]
+            sequence = f["sequence_integer"].replace()
+            precursor_charge_onehot = f["precursor_charge_onehot"]
+            f.close()
+        seq_num = sequence[idx].tolist()
+        seq = ''.join(int_to_aa_dict[n] for n in seq_num)
+        inty = intensity[idx]
+        charge_ohe = precursor_charge_onehot[idx]
         charge = np.argmax(charge_ohe)
 
         mol = Chem.MolFromSequence(seq)
