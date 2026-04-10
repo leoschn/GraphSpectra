@@ -17,7 +17,7 @@ from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import rdPartialCharges
 
 alphabet = [
-    "0",
+    "",
     "A",
     "C",
     "D",
@@ -38,11 +38,98 @@ alphabet = [
     "V",
     "W",
     "Y",
+    "M(ox)"
 ]
 
 aa_to_int_dict = dict((aa, i) for i, aa in enumerate(alphabet))
 
 int_to_aa_dict = dict((i, aa) for i, aa in enumerate(alphabet))
+
+from rdkit import Chem
+from rdkit.Chem import rdmolops
+import re
+
+
+# --- Step 1: Parse sequence and detect oxidized methionine ---
+def parse_sequence(seq):
+    """
+    Returns:
+        clean_seq: sequence without modifications
+        ox_positions: list of positions (0-based) of M(ox)
+    """
+    ox_positions = []
+    clean_seq = ""
+
+    i = 0
+    pos = 0
+    while i < len(seq):
+        if seq[i] == "M" and seq[i:i + 5] == "M(ox)":
+            clean_seq += "M"
+            ox_positions.append(pos)
+            i += 5
+        else:
+            clean_seq += seq[i]
+            i += 1
+        pos += 1
+
+    return clean_seq, ox_positions
+
+
+# --- Step 2: Build peptide with RDKit ---
+def build_peptide(seq):
+    """
+    Build peptide molecule from clean sequence
+    """
+    mol = Chem.MolFromFASTA(seq)
+    if mol is None:
+        raise ValueError("Failed to build peptide from sequence")
+    return mol
+
+
+# --- Step 3: Oxidize methionine sulfur ---
+def oxidize_methionine(mol, residue_index):
+    """
+    Adds =O to sulfur atom of a methionine residue
+    residue_index: 0-based index in peptide
+    """
+    mol = Chem.RWMol(mol)
+
+    # RDKit stores residue info in atom properties
+    for atom in mol.GetAtoms():
+        info = atom.GetPDBResidueInfo()
+        if info is None:
+            continue
+
+        if info.GetResidueNumber() == residue_index + 1:
+            # Find sulfur atom in methionine
+            if atom.GetSymbol() == "S":
+                s_idx = atom.GetIdx()
+
+                # Add oxygen atom
+                o_idx = mol.AddAtom(Chem.Atom("O"))
+
+                # Add double bond S=O
+                mol.AddBond(s_idx, o_idx, Chem.BondType.DOUBLE)
+
+                break
+
+    return mol.GetMol()
+
+
+# --- Full pipeline ---
+def seq_to_mol_with_ox(seq):
+    clean_seq, ox_positions = parse_sequence(seq)
+
+    mol = build_peptide(clean_seq)
+
+    for pos in ox_positions:
+        mol = oxidize_methionine(mol, pos)
+
+    Chem.SanitizeMol(mol)
+    return mol
+
+
+
 
 #from deepGCN-RT
 atom_features = [
@@ -342,7 +429,6 @@ class SpectraGraphDataset(Dataset):
         with h5py.File(self.data_source, "r") as f:
             intensity = f["intensities_raw"]
             self.length = intensity.shape[0]
-            f.close()
 
 
     def __len__(self):
@@ -353,13 +439,14 @@ class SpectraGraphDataset(Dataset):
             intensity = f["intensities_raw"]
             sequence = f["sequence_integer"]
             precursor_charge_onehot = f["precursor_charge_onehot"]
-            f.close()
-        seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
-        inty = intensity[idx]
-        charge_ohe = precursor_charge_onehot[idx]
+            seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
+            inty = intensity[idx]
+            charge_ohe = precursor_charge_onehot[idx]
         charge = np.argmax(charge_ohe)
-
-        mol = Chem.MolFromSequence(seq)
+        if '(ox)' in seq:
+            mol = seq_to_mol_with_ox(seq)
+        else :
+            mol = Chem.MolFromSequence(seq)
 
 
         x = torch.tensor(get_node_features(mol))
