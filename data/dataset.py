@@ -426,22 +426,21 @@ class SpectraGraphDataset(Dataset):
         self.label_type = label_type
         self.node_dim = get_node_dim(exclude_feature=None)
         self.edge_dim = get_edge_dim(exclude_feature=None)
-        with h5py.File(self.data_source, "r") as f:
-            intensity = f["intensities_raw"]
-            self.length = intensity.shape[0]
+        self.f = h5py.File(self.data_source, "r")
+        intensity = f["intensities_raw"]
+        self.length = intensity.shape[0]
 
 
     def __len__(self):
         return self.length
 
     def __getitem__(self, idx):
-        with h5py.File(self.data_source, "r") as f:
-            intensity = f["intensities_raw"]
-            sequence = f["sequence_integer"]
-            precursor_charge_onehot = f["precursor_charge_onehot"]
-            seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
-            inty = intensity[idx]
-            charge_ohe = precursor_charge_onehot[idx]
+        intensity = f["intensities_raw"]
+        sequence = f["sequence_integer"]
+        precursor_charge_onehot = f["precursor_charge_onehot"]
+        seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
+        inty = intensity[idx]
+        charge_ohe = precursor_charge_onehot[idx]
         charge = np.argmax(charge_ohe)
         if '(ox)' in seq:
             mol = seq_to_mol_with_ox(seq)
