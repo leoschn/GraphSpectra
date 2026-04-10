@@ -339,10 +339,14 @@ class SpectraGraphDataset(Dataset):
         self.label_type = label_type
         self.node_dim = get_node_dim(exclude_feature=None)
         self.edge_dim = get_edge_dim(exclude_feature=None)
+        with h5py.File(self.data_source, "r") as f:
+            intensity = f["intensities_raw"]
+            self.length = intensity.shape[0]
+            f.close()
 
 
     def __len__(self):
-        return len(self.seq)
+        return self.length
 
     def __getitem__(self, idx):
         with h5py.File(self.data_source, "r") as f:
