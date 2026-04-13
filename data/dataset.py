@@ -47,6 +47,11 @@ alphabet = [
     "M(ox)"
 ]
 
+if NODE_DIM is None:
+    NODE_DIM = get_node_dim()
+if EDGE_DIM is None:
+    EDGE_DIM = get_edge_dim()
+
 aa_to_int_dict = dict((aa, i) for i, aa in enumerate(alphabet))
 
 int_to_aa_dict = dict((i, aa) for i, aa in enumerate(alphabet))
@@ -389,7 +394,7 @@ def get_node_dim(exclude_feature=None):
 
 def get_node_features(mol, exclude_feature=None):
     num_atoms = mol.GetNumAtoms()
-    node_features = np.zeros((num_atoms, get_node_dim()), dtype=np.float32)
+    node_features = np.zeros((num_atoms, NODE_DIM), dtype=np.float32)
     mol_feats = precompute_mol_features(mol)
     for i, atom in enumerate(mol.GetAtoms()):
         node_features[i] = atom_featurizer(atom, mol_feats, exclude_feature)
@@ -397,7 +402,7 @@ def get_node_features(mol, exclude_feature=None):
 
 def get_edge_features(mol, exclude_feature=None):
     num_edge = mol.GetNumBonds()
-    edge_features = np.zeros((num_edge, get_edge_dim()), dtype=np.float32)
+    edge_features = np.zeros((num_edge, EDGE_DIM), dtype=np.float32)
 
     for i, bond in enumerate(mol.GetBonds()):
         edge_features[i] =  bond_featurizer(bond, exclude_feature)
@@ -452,102 +457,124 @@ def init_worker(seq, inty, charge, energy, label_type):
 # =========================
 
 def process_one(i):
-    seq = ''.join(int_to_aa_dict[n] for n in SEQ[i].tolist())
-    inty = INTY[i]
-    charge_ohe = CHARGE[i]
-    energy = ENERGY[i]
+    try :
+        seq = ''.join(int_to_aa_dict[n] for n in SEQ[i].tolist())
+        inty = INTY[i]
+        charge_ohe = CHARGE[i]
+        energy = ENERGY[i]
 
-    charge = np.argmax(charge_ohe)
+        charge = np.argmax(charge_ohe)
 
-    # ---- molecule ----
-    if '(ox)' in seq:
-        mol = seq_to_mol_with_ox(seq)
-    else:
-        mol = Chem.MolFromSequence(seq)
+        # ---- molecule ----
+        if '(ox)' in seq:
+            mol = seq_to_mol_with_ox(seq)
+        else:
+            mol = Chem.MolFromSequence(seq)
 
-    if mol is None:
+        if mol is None:
+            return None
+
+        # ---- node features ----
+        x_local = get_node_features(mol)
+        x_global = get_global_feature(mol, charge_ohe, energy)
+        x = np.concatenate([x_local, x_global], axis=1)
+
+        # ---- edges ----
+        edges = [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()]
+        if len(edges) == 0:
+            return None
+
+        edge_index = np.array(edges).T
+        edge_attr = get_edge_features(mol)
+
+        edge_index, edge_attr = to_undirected(edge_index, edge_attr)
+
+        # ---- labels ----
+        bonds_list = list(mol.GetBonds())
+
+        # if LABEL_TYPE == "full":
+        #     peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
+        #     matches = mol.GetSubstructMatches(peptide_pattern)
+        #
+        #     if charge == 0:
+        #         bond_prob = [0, -1, -1, 0, -1, -1] * len(bonds_list)
+        #     elif charge == 1:
+        #         bond_prob = [0, 0, -1, 0, 0, -1] * len(bonds_list)
+        #     else:
+        #         bond_prob = [0] * 6 * len(bonds_list)
+        #
+        #     for i_bond, b in enumerate(bonds_list):
+        #         for match in matches:
+        #             c_idx, o_idx, n_idx, _ = match
+        #             if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
+        #                 bond_prob[6 * i_bond:6 * i_bond + 6] = inty[6 * matches.index(match):6 * matches.index(match) + 6]
+        #
+        # elif LABEL_TYPE == "scarce":
+        bond_prob = inty
+
+
+        y = np.array(bond_prob, dtype=np.float32)
+
+        return {
+            "x": x.numpy(),
+            "edge_index": edge_index.numpy(),
+            "edge_attr": edge_attr.numpy(),
+            "y": y.numpy()
+        }
+
+    except Exception as e:
+        print(f"[Worker ERROR] index {i}: {e}")
         return None
-
-    # ---- node features ----
-    x_local = torch.from_numpy(get_node_features(mol)).float()
-    x_global = torch.from_numpy(get_global_feature(mol, charge_ohe, energy)).float()
-    x = torch.cat([x_local, x_global], dim=1)
-
-    # ---- edges ----
-    edges = [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()]
-    if len(edges) == 0:
-        return None
-
-    edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
-    edge_attr = torch.from_numpy(get_edge_features(mol)).float()
-
-    edge_index, edge_attr = to_undirected(edge_index, edge_attr)
-
-    # ---- labels ----
-    bonds_list = list(mol.GetBonds())
-
-    # if LABEL_TYPE == "full":
-    #     peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
-    #     matches = mol.GetSubstructMatches(peptide_pattern)
-    #
-    #     if charge == 0:
-    #         bond_prob = [0, -1, -1, 0, -1, -1] * len(bonds_list)
-    #     elif charge == 1:
-    #         bond_prob = [0, 0, -1, 0, 0, -1] * len(bonds_list)
-    #     else:
-    #         bond_prob = [0] * 6 * len(bonds_list)
-    #
-    #     for i_bond, b in enumerate(bonds_list):
-    #         for match in matches:
-    #             c_idx, o_idx, n_idx, _ = match
-    #             if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
-    #                 bond_prob[6 * i_bond:6 * i_bond + 6] = inty[6 * matches.index(match):6 * matches.index(match) + 6]
-    #
-    # elif LABEL_TYPE == "scarce":
-    bond_prob = inty
-
-
-    y = torch.tensor(bond_prob, dtype=torch.float32).flatten()
-
-    return {
-        "x": x.numpy(),
-        "edge_index": edge_index.numpy(),
-        "edge_attr": edge_attr.numpy(),
-        "y": y.numpy()
-    }
 
 
 # =========================
 # Batch processing with multiprocessing
 # =========================
 def process_batch(start, end, sequence, intensity, charge, energy, label_type):
-    seq_batch = sequence[start:end]
-    inty_batch = intensity[start:end]
-    charge_batch = charge[start:end]
-    energy_batch = energy[start:end]
+    try:
+        seq_batch = sequence[start:end]
+        inty_batch = intensity[start:end]
+        charge_batch = charge[start:end]
+        energy_batch = energy[start:end]
 
-    n_workers = min(cpu_count(), 40)
+        n_workers = min(cpu_count(), 40)
 
-    with Pool(
-        processes=n_workers,
-        initializer=init_worker,
-        initargs=(seq_batch, inty_batch, charge_batch, energy_batch, label_type)
-    ) as pool:
-        results = pool.map(process_one, range(end - start))
+        with Pool(
+            processes=n_workers,
+            initializer=init_worker,
+            initargs=(seq_batch, inty_batch, charge_batch, energy_batch, label_type)
+        ) as pool:
+            results = pool.map(process_one, range(end - start))
 
-    data_list = []
-    for r in results:
-        if r is None:
-            continue
+        data_list = []
+        for r in results:
+            if r is None:
+                continue
 
-        data = Data(
-            x=torch.from_numpy(r["x"]).float(),
-            edge_index=torch.from_numpy(r["edge_index"]).long(),
-            edge_attr=torch.from_numpy(r["edge_attr"]).float(),
-            y=torch.from_numpy(r["y"]).float()
-        )
+            try:
+                edge_index = torch.from_numpy(r["edge_index"]).long()
+                edge_attr = torch.from_numpy(r["edge_attr"]).float()
 
-        data_list.append(data)
+                edge_index, edge_attr = to_undirected(edge_index, edge_attr)
+
+                data = Data(
+                    x=torch.from_numpy(r["x"]).float(),
+                    edge_index=edge_index,
+                    edge_attr=edge_attr,
+                    y=torch.from_numpy(r["y"]).float()
+                )
+
+                data_list.append(data)
+
+            except Exception as e:
+                print(f"[Post-process ERROR]: {e}")
+                continue
+
+        return data_list
+
+    except Exception as e:
+        print(f"[Batch ERROR] {start}-{end}: {e}")
+        return []
 
 
 class SpectraGraphDatasetPrec(InMemoryDataset):
@@ -597,6 +624,10 @@ class SpectraGraphDatasetPrec(InMemoryDataset):
                     energy_list,
                     self.label_type
                 )
+
+                if batch_data is None:
+                    print(f"[WARNING] batch {start}-{end} failed")
+                    continue
 
                 data_list.extend(batch_data)
 
