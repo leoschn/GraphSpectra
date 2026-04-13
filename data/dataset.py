@@ -382,6 +382,20 @@ def get_edge_dim(exclude_feature=None):
 
     return edge_dim
 
+def precompute_mol_features(mol):
+    CrippenContribs = Crippen._GetAtomContribs(mol)
+    TPSAContribs = rdMolDescriptors._CalcTPSAContribs(mol)
+    LabuteASAContribs = rdMolDescriptors._CalcLabuteASAContribs(mol)[0]
+
+    rdPartialCharges.ComputeGasteigerCharges(mol)
+    GasteigerCharges = [
+        atom.GetDoubleProp('_GasteigerCharge') for atom in mol.GetAtoms()
+    ]
+
+    return CrippenContribs, TPSAContribs, LabuteASAContribs, GasteigerCharges
+
+
+
 def get_node_dim(exclude_feature=None):
     """Hacky way to get node dim from atom_featurizer"""
     mol = Chem.MolFromSmiles('CC')
@@ -391,6 +405,8 @@ def get_node_dim(exclude_feature=None):
 
 NODE_DIM = get_node_dim()
 EDGE_DIM = get_edge_dim()
+
+
 
 def get_node_features(mol, exclude_feature=None):
     num_atoms = mol.GetNumAtoms()
@@ -416,18 +432,6 @@ def get_global_feature(mol,precursor_charge_onehot,energy):
 
 
 
-
-def precompute_mol_features(mol):
-    CrippenContribs = Crippen._GetAtomContribs(mol)
-    TPSAContribs = rdMolDescriptors._CalcTPSAContribs(mol)
-    LabuteASAContribs = rdMolDescriptors._CalcLabuteASAContribs(mol)[0]
-
-    rdPartialCharges.ComputeGasteigerCharges(mol)
-    GasteigerCharges = [
-        atom.GetDoubleProp('_GasteigerCharge') for atom in mol.GetAtoms()
-    ]
-
-    return CrippenContribs, TPSAContribs, LabuteASAContribs, GasteigerCharges
 
 
 # =========================
