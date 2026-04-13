@@ -12,6 +12,8 @@ from torch_geometric.utils import to_undirected
 from torch_geometric.data import InMemoryDataset
 
 from multiprocessing import Pool, cpu_count
+import torch.multiprocessing as mp
+mp.set_sharing_strategy("file_system")
 
 from rdkit import Chem, RDConfig, RDLogger
 from rdkit.Chem import AllChem
@@ -507,7 +509,12 @@ def process_one(i):
 
     y = torch.tensor(bond_prob, dtype=torch.float32).flatten()
 
-    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
+    return {
+        "x": x.numpy(),
+        "edge_index": edge_index.numpy(),
+        "edge_attr": edge_attr.numpy(),
+        "y": y.numpy()
+    }
 
 
 # =========================
@@ -528,7 +535,19 @@ def process_batch(start, end, sequence, intensity, charge, energy, label_type):
     ) as pool:
         results = pool.map(process_one, range(end - start))
 
-    return [r for r in results if r is not None]
+    data_list = []
+    for r in results:
+        if r is None:
+            continue
+
+        data = Data(
+            x=torch.from_numpy(r["x"]).float(),
+            edge_index=torch.from_numpy(r["edge_index"]).long(),
+            edge_attr=torch.from_numpy(r["edge_attr"]).float(),
+            y=torch.from_numpy(r["y"]).float()
+        )
+
+        data_list.append(data)
 
 
 class SpectraGraphDatasetPrec(InMemoryDataset):
