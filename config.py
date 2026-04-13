@@ -12,9 +12,9 @@ def load_args():
     parser.add_argument('--dataset_train', type=str, default='dataset/train_hcd.hdf5')
     parser.add_argument('--dataset_val', type=str, default='dataset/val_hcd.hdf5')
     parser.add_argument('--dataset_test', type=str, default='dataset/holdout_hcd.hdf5')
-    parser.add_argument('--root_train', type=str, default='dataset/train_hcd_prec.hdf5')
-    parser.add_argument('--root_val', type=str, default='dataset/val_hcd_prec.hdf5')
-    parser.add_argument('--root_test', type=str, default='dataset/holdout_hcd_prec.hdf5')
+    parser.add_argument('--root_train', type=str, default='dataset/train_hcd_prec.pt')
+    parser.add_argument('--root_val', type=str, default='dataset/val_hcd_prec.pt')
+    parser.add_argument('--root_test', type=str, default='dataset/holdout_hcd_prec.pt')
     args = parser.parse_args()
 
     return args
