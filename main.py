@@ -92,9 +92,9 @@ if __name__ == '__main__':
         data_source=args.dataset_test, label_type='scarce'
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True,num_workers=8,pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=config.batch_size,num_workers=8,pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=config.batch_size,num_workers=8,pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True,num_workers=6,pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
 
     # -----------------------
     # Model

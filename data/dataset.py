@@ -7,6 +7,8 @@ import h5py
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
+from torch_geometric.data import InMemoryDataset
+
 
 from rdkit import Chem
 from rdkit import Chem, RDConfig, RDLogger
@@ -395,25 +397,151 @@ def get_edge_features(mol, exclude_feature=None):
     )
     return edge_features
 
+def get_global_feature(mol,precursor_charge_onehot,energy):
+    num_node = mol.GetNumAtoms()
+    x_global = np.array([np.concatenate([precursor_charge_onehot,energy]) for n in range(num_node)])
+    return x_global
 
 
-# def atom_features(atom):
-#     return torch.tensor([
-#         atom.GetAtomicNum(),           # atomic number
-#         atom.GetDegree(),              # number of bonded neighbors
-#         int(atom.GetIsAromatic())      # aromaticity flag
-#     ], dtype=torch.float)
-#
-#
-# def bond_features(bond):
-#     return torch.tensor([
-#         float(bond.GetBondTypeAsDouble()),  # single=1, double=2, etc.
-#         int(bond.GetIsConjugated()),  # conjugation flag
-#         int(bond.GetIsAromatic())  # aromatic flag
-#     ], dtype=torch.float)
-#
-#
+import os
+import torch
+import h5py
+import numpy as np
 
+from torch_geometric.data import InMemoryDataset, Data
+from torch_geometric.utils import to_undirected
+
+from rdkit import Chem
+
+# assume these are defined elsewhere
+# - get_node_features
+# - get_edge_features
+# - get_global_feature
+# - seq_to_mol_with_ox
+# - int_to_aa_dict
+
+
+class SpectraGraphDatasetPrec(InMemoryDataset):
+    def __init__(self, root, data_source, label_type="full", transform=None, pre_transform=None):
+        """
+        Args:
+            root: where processed file will be stored
+            data_source: path to HDF5 file
+            label_type: 'full' or 'scarce'
+        """
+        self.data_source = data_source
+        self.label_type = label_type
+
+        super().__init__(root, transform, pre_transform)
+
+        # load processed data
+        self.data, self.slices = torch.load(self.processed_paths[0])
+
+    @property
+    def raw_file_names(self):
+        return [os.path.basename(self.data_source)]
+
+    @property
+    def processed_file_names(self):
+        return ["data.pt"]
+
+    def download(self):
+        # not needed
+        pass
+
+    def process(self):
+        data_list = []
+
+        with h5py.File(self.data_source, "r") as f:
+            intensity = f["intensities_raw"]
+            sequence = f["sequence_integer"]
+            precursor_charge_onehot = f["precursor_charge_onehot"]
+            energy_list = f["collision_energy_aligned"]
+
+            length = intensity.shape[0]
+
+            for idx in range(length):
+                # --- Load raw data ---
+                seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
+                inty = intensity[idx]
+                charge_ohe = precursor_charge_onehot[idx]
+                charge = np.argmax(charge_ohe)
+                energy = energy_list[idx]
+
+                # --- Build molecule ---
+                if '(ox)' in seq:
+                    mol = seq_to_mol_with_ox(seq)
+                else:
+                    mol = Chem.MolFromSequence(seq)
+
+                if mol is None:
+                    continue  # skip bad samples
+
+                # --- Node features ---
+                x_local = torch.tensor(get_node_features(mol), dtype=torch.float32)
+                x_global = torch.tensor(get_global_feature(mol, charge_ohe, energy), dtype=torch.float32)
+                x = torch.cat([x_local, x_global], dim=1)
+
+                # --- Edges ---
+                edge_index = []
+                for bond in mol.GetBonds():
+                    start = bond.GetBeginAtomIdx()
+                    end = bond.GetEndAtomIdx()
+                    edge_index.append([start, end])
+
+                if len(edge_index) == 0:
+                    continue  # skip isolated cases
+
+                edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+                edge_attr = torch.tensor(get_edge_features(mol), dtype=torch.float32)
+
+                edge_index, edge_attr = to_undirected(edge_index, edge_attr)
+
+                # --- Labels ---
+                bonds_list = list(mol.GetBonds())
+
+                if self.label_type == 'full':
+                    peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
+                    matches = mol.GetSubstructMatches(peptide_pattern)
+
+                    if charge == 0:
+                        bond_prob = [0, -1, -1, 0, -1, -1] * len(bonds_list)
+                    elif charge == 1:
+                        bond_prob = [0, 0, -1, 0, 0, -1] * len(bonds_list)
+                    else:
+                        bond_prob = [0, 0, 0, 0, 0, 0] * len(bonds_list)
+
+                    for i, b in enumerate(bonds_list):
+                        for j, match in enumerate(matches):
+                            c_idx, o_idx, n_idx, _ = match
+                            if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
+                                bond_prob[6*i:6*i+6] = inty[6*j:6*j+6]
+
+                elif self.label_type == 'scarce':
+                    bond_prob = inty
+
+                else:
+                    raise NotImplementedError
+
+                y = torch.tensor(bond_prob, dtype=torch.float32).flatten()
+
+                # --- Create Data object ---
+                data = Data(
+                    x=x,
+                    edge_index=edge_index,
+                    edge_attr=edge_attr,
+                    y=y
+                )
+
+                # optional transform
+                if self.pre_transform is not None:
+                    data = self.pre_transform(data)
+
+                data_list.append(data)
+
+        # --- Collate & save ---
+        data, slices = self.collate(data_list)
+        torch.save((data, slices), self.processed_paths[0])
 
 class SpectraGraphDataset(Dataset):
     def __init__(self, data_source,label_type):
@@ -438,17 +566,25 @@ class SpectraGraphDataset(Dataset):
         intensity = self.f["intensities_raw"]
         sequence = self.f["sequence_integer"]
         precursor_charge_onehot = self.f["precursor_charge_onehot"]
+        energy_list = self.f["collision_energy_aligned"]
         seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
         inty = intensity[idx]
         charge_ohe = precursor_charge_onehot[idx]
         charge = np.argmax(charge_ohe)
+        energy = energy_list[idx]
         if '(ox)' in seq:
             mol = seq_to_mol_with_ox(seq)
         else :
             mol = Chem.MolFromSequence(seq)
 
 
-        x = torch.tensor(get_node_features(mol))
+        #node specific features
+        x_local = torch.tensor(get_node_features(mol))
+
+        #node global features
+        x_global = torch.tensor(get_global_feature(mol,charge_ohe,energy))
+
+        x = torch.cat([x_local, x_global], dim=1)
 
         edge_index = []
         edge_attr = []
