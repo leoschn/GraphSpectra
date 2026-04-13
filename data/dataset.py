@@ -4,6 +4,8 @@ import pandas as pd
 import torch
 import ast
 import h5py
+import os
+
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
@@ -182,11 +184,24 @@ def bond_featurizer(bond: Chem.Bond,exclude_feature) -> np.ndarray:
         globals()[bond_feature](bond) for bond_feature in new_bond_features
     ], axis=0)
 
-def atom_featurizer(atom: Chem.Atom, exclude_feature) -> np.ndarray:
+def atom_featurizer(atom, mol_feats, exclude_feature):
     new_atom_features = [i for i in atom_features if i != exclude_feature]
-    return np.concatenate([
-        globals()[atom_feature](atom) for atom_feature in new_atom_features
-    ], axis=0)
+
+    features = []
+
+    for atom_feature in new_atom_features:
+        if atom_feature in [
+            'crippen_log_p_contrib',
+            'crippen_molar_refractivity_contrib',
+            'tpsa_contrib',
+            'labute_asa_contrib',
+            'gasteiger_charge'
+        ]:
+            features.append(globals()[atom_feature](atom, mol_feats)) #molecule level prop
+        else:
+            features.append(globals()[atom_feature](atom)) #atome level prop
+
+    return np.concatenate(features, axis=0)
 
 def bondtype(bond: Chem.Bond) -> List[float]:
     return onehot_encode(
@@ -333,36 +348,25 @@ def num_radical_electrons(atom: Chem.Atom) -> List[float]:
         allowable_set=[0, 1, 2]
     )
 
-def crippen_log_p_contrib(atom: Chem.Atom) -> List[float]:
-    mol = atom.GetOwningMol()
-    return encode(
-        x=Crippen._GetAtomContribs(mol)[atom.GetIdx()][0]
-    )
+def crippen_log_p_contrib(atom, mol_feats):
+    crippen, _, _, _ = mol_feats
+    return encode(crippen[atom.GetIdx()][0])
 
-def crippen_molar_refractivity_contrib(atom: Chem.Atom) -> List[float]:
-    mol = atom.GetOwningMol()
-    return encode(
-        x=Crippen._GetAtomContribs(mol)[atom.GetIdx()][1]
-    )
+def crippen_molar_refractivity_contrib(atom, mol_feats):
+    crippen, _, _, _ = mol_feats
+    return encode(crippen[atom.GetIdx()][1])
 
-def tpsa_contrib(atom: Chem.Atom) -> List[float]:
-    mol = atom.GetOwningMol()
-    return encode(
-        x=rdMolDescriptors._CalcTPSAContribs(mol)[atom.GetIdx()]
-    )
+def tpsa_contrib(atom, mol_feats):
+    _, tpsa, _, _ = mol_feats
+    return encode(tpsa[atom.GetIdx()])
 
-def labute_asa_contrib(atom: Chem.Atom) -> List[float]:
-    mol = atom.GetOwningMol()
-    return encode(
-        x=rdMolDescriptors._CalcLabuteASAContribs(mol)[0][atom.GetIdx()]
-    )
+def labute_asa_contrib(atom, mol_feats):
+    _, _, labute, _ = mol_feats
+    return encode(labute[atom.GetIdx()])
 
-def gasteiger_charge(atom: Chem.Atom) -> List[float]:
-    mol = atom.GetOwningMol()
-    rdPartialCharges.ComputeGasteigerCharges(mol)
-    return encode(
-        x=atom.GetDoubleProp('_GasteigerCharge')
-    )
+def gasteiger_charge(atom, mol_feats):
+    _, _, _, gasteiger = mol_feats
+    return encode(gasteiger[atom.GetIdx()])
 
 
 def get_edge_dim(exclude_feature=None):
@@ -385,16 +389,20 @@ def get_node_dim(exclude_feature=None):
     return node_dim
 
 def get_node_features(mol, exclude_feature=None):
-    node_features = np.array([
-        atom_featurizer(atom,exclude_feature) for atom in mol.GetAtoms()
-    ], dtype='float32')
+    num_atoms = mol.GetNumAtoms()
+    node_features = np.zeros((num_atoms, get_node_dim()), dtype=np.float32)
+
+    for i, atom in enumerate(mol.GetAtoms()):
+        node_features[i] = atom_featurizer(atom, mol_feats, exclude_feature)
     return node_features
 
 def get_edge_features(mol, exclude_feature=None):
-    edge_features = np.array([
-        bond_featurizer(bond, exclude_feature) for bond in mol.GetBonds()
-    ], dtype="float32"
-    )
+    num_edge = mol.GetNumBonds()
+    edge_features = np.zeros((num_edge, get_edge_dim()), dtype=np.float32)
+
+    for i, bond in enumerate(mol.GetBonds()):
+        edge_features[i] =  bond_featurizer(bond, exclude_feature)
+
     return edge_features
 
 def get_global_feature(mol,precursor_charge_onehot,energy):
@@ -403,22 +411,19 @@ def get_global_feature(mol,precursor_charge_onehot,energy):
     return x_global
 
 
-import os
-import torch
-import h5py
-import numpy as np
 
-from torch_geometric.data import InMemoryDataset, Data
-from torch_geometric.utils import to_undirected
 
-from rdkit import Chem
+def precompute_mol_features(mol):
+    CrippenContribs = Crippen._GetAtomContribs(mol)
+    TPSAContribs = rdMolDescriptors._CalcTPSAContribs(mol)
+    LabuteASAContribs = rdMolDescriptors._CalcLabuteASAContribs(mol)[0]
 
-# assume these are defined elsewhere
-# - get_node_features
-# - get_edge_features
-# - get_global_feature
-# - seq_to_mol_with_ox
-# - int_to_aa_dict
+    rdPartialCharges.ComputeGasteigerCharges(mol)
+    GasteigerCharges = [
+        atom.GetDoubleProp('_GasteigerCharge') for atom in mol.GetAtoms()
+    ]
+
+    return CrippenContribs, TPSAContribs, LabuteASAContribs, GasteigerCharges
 
 
 class SpectraGraphDatasetPrec(InMemoryDataset):
@@ -460,172 +465,98 @@ class SpectraGraphDatasetPrec(InMemoryDataset):
 
             length = intensity.shape[0]
 
-            for idx in range(length):
-                print('Processing', idx,' of ',length)
-                # --- Load raw data ---
-                seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
-                inty = intensity[idx]
-                charge_ohe = precursor_charge_onehot[idx]
-                charge = np.argmax(charge_ohe)
-                energy = energy_list[idx]
+            batch_size = 512  # tune: 256–2048 depending on RAM
 
-                # --- Build molecule ---
-                if '(ox)' in seq:
-                    mol = seq_to_mol_with_ox(seq)
-                else:
-                    mol = Chem.MolFromSequence(seq)
+            for start in range(0, length, batch_size):
+                end = min(start + batch_size, length)
 
-                if mol is None:
-                    continue  # skip bad samples
+                print(f"Processing {start} - {end} / {length}")
 
-                # --- Node features ---
-                x_local = torch.tensor(get_node_features(mol), dtype=torch.float32)
-                x_global = torch.tensor(get_global_feature(mol, charge_ohe, energy), dtype=torch.float32)
-                x = torch.cat([x_local, x_global], dim=1)
+                # ===== batch read (FAST) =====
+                seq_batch = sequence[start:end]
+                inty_batch = intensity[start:end]
+                charge_batch = precursor_charge_onehot[start:end]
+                energy_batch = energy_list[start:end]
 
-                # --- Edges ---
-                edge_index = []
-                for bond in mol.GetBonds():
-                    start = bond.GetBeginAtomIdx()
-                    end = bond.GetEndAtomIdx()
-                    edge_index.append([start, end])
+                # ===== process inside batch =====
+                for i in range(end - start):
+                    seq = ''.join(int_to_aa_dict[n] for n in seq_batch[i].tolist())
+                    inty = inty_batch[i]
+                    charge_ohe = charge_batch[i]
+                    charge = np.argmax(charge_ohe)
+                    energy = energy_batch[i]
 
-                if len(edge_index) == 0:
-                    continue  # skip isolated cases
-
-                edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
-                edge_attr = torch.tensor(get_edge_features(mol), dtype=torch.float32)
-
-                edge_index, edge_attr = to_undirected(edge_index, edge_attr)
-
-                # --- Labels ---
-                bonds_list = list(mol.GetBonds())
-
-                if self.label_type == 'full':
-                    peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
-                    matches = mol.GetSubstructMatches(peptide_pattern)
-
-                    if charge == 0:
-                        bond_prob = [0, -1, -1, 0, -1, -1] * len(bonds_list)
-                    elif charge == 1:
-                        bond_prob = [0, 0, -1, 0, 0, -1] * len(bonds_list)
+                    # --- Build molecule ---
+                    if '(ox)' in seq:
+                        mol = seq_to_mol_with_ox(seq)
                     else:
-                        bond_prob = [0, 0, 0, 0, 0, 0] * len(bonds_list)
+                        mol = Chem.MolFromSequence(seq)
 
-                    for i, b in enumerate(bonds_list):
-                        for j, match in enumerate(matches):
-                            c_idx, o_idx, n_idx, _ = match
-                            if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
-                                bond_prob[6*i:6*i+6] = inty[6*j:6*j+6]
+                    if mol is None:
+                        continue  # skip bad samples
 
-                elif self.label_type == 'scarce':
-                    bond_prob = inty
+                    # --- Node features ---
+                    x_local = torch.from_numpy(get_node_features(mol), dtype=torch.float32)
+                    x_global = torch.from_numpy(get_global_feature(mol, charge_ohe, energy), dtype=torch.float32)
+                    x = torch.cat([x_local, x_global], dim=1)
 
-                else:
-                    raise NotImplementedError
+                    # --- Edges ---
+                    edge_index = []
 
-                y = torch.tensor(bond_prob, dtype=torch.float32).flatten()
+                    edges = [(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()) for bond in mol.GetBonds()]
+                    edge_index = torch.tensor(edges, dtype=torch.long).t()
 
-                # --- Create Data object ---
-                data = Data(
-                    x=x,
-                    edge_index=edge_index,
-                    edge_attr=edge_attr,
-                    y=y
-                )
+                    if len(edge_index) == 0:
+                        continue  # skip isolated cases
 
-                # optional transform
-                if self.pre_transform is not None:
-                    data = self.pre_transform(data)
+                    edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+                    edge_attr = torch.from_numpy(get_edge_features(mol), dtype=torch.float32)
 
-                data_list.append(data)
+                    edge_index, edge_attr = to_undirected(edge_index, edge_attr)
+
+                    # --- Labels ---
+                    bonds_list = list(mol.GetBonds())
+
+                    if self.label_type == 'full':
+                        peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
+                        matches = mol.GetSubstructMatches(peptide_pattern)
+
+                        if charge == 0:
+                            bond_prob = [0, -1, -1, 0, -1, -1] * len(bonds_list)
+                        elif charge == 1:
+                            bond_prob = [0, 0, -1, 0, 0, -1] * len(bonds_list)
+                        else:
+                            bond_prob = [0, 0, 0, 0, 0, 0] * len(bonds_list)
+
+                        for a, b in enumerate(bonds_list):
+                            for j, match in enumerate(matches):
+                                c_idx, o_idx, n_idx, _ = match
+                                if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
+                                    bond_prob[6*i:6*a+6] = inty[6*j:6*j+6]
+
+                    elif self.label_type == 'scarce':
+                        bond_prob = inty
+
+                    else:
+                        raise NotImplementedError
+
+                    y = torch.tensor(bond_prob, dtype=torch.float32).flatten()
+
+                    # --- Create Data object ---
+                    data = Data(
+                        x=x,
+                        edge_index=edge_index,
+                        edge_attr=edge_attr,
+                        y=y
+                    )
+
+                    # optional transform
+                    if self.pre_transform is not None:
+                        data = self.pre_transform(data)
+
+                    data_list.append(data)
 
         # --- Collate & save ---
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
-
-class SpectraGraphDataset(Dataset):
-    def __init__(self, data_source,label_type):
-        """
-        Args:
-            data_source: data path
-            transform: optional transform to apply to each sample
-        """
-        self.data_source = data_source
-        self.label_type = label_type
-        self.node_dim = get_node_dim(exclude_feature=None)
-        self.edge_dim = get_edge_dim(exclude_feature=None)
-        self.f = h5py.File(self.data_source, "r")
-        intensity = self.f["intensities_raw"]
-        self.length = intensity.shape[0]
-
-
-    def __len__(self):
-        return self.length
-
-    def __getitem__(self, idx):
-        intensity = self.f["intensities_raw"]
-        sequence = self.f["sequence_integer"]
-        precursor_charge_onehot = self.f["precursor_charge_onehot"]
-        energy_list = self.f["collision_energy_aligned"]
-        seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
-        inty = intensity[idx]
-        charge_ohe = precursor_charge_onehot[idx]
-        charge = np.argmax(charge_ohe)
-        energy = energy_list[idx]
-        if '(ox)' in seq:
-            mol = seq_to_mol_with_ox(seq)
-        else :
-            mol = Chem.MolFromSequence(seq)
-
-
-        #node specific features
-        x_local = torch.tensor(get_node_features(mol))
-
-        #node global features
-        x_global = torch.tensor(get_global_feature(mol,charge_ohe,energy))
-
-        x = torch.cat([x_local, x_global], dim=1)
-
-        edge_index = []
-        edge_attr = []
-        bons_list = mol.GetBonds()
-        for bond in bons_list:
-            start = bond.GetBeginAtomIdx()
-            end = bond.GetEndAtomIdx()
-            edge_index.append([start, end])
-
-
-        edge_attr = torch.tensor(get_edge_features(mol))
-        edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
-
-        edge_index, edge_attr = to_undirected(edge_index, edge_attr)
-
-        if self.label_type == 'full':
-            peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
-            # look for all peptides bonds
-            matches = mol.GetSubstructMatches(peptide_pattern)
-
-            if charge == 0 :
-                bond_prob = [0,-1,-1,0,-1,-1]*len(bons_list)
-            elif charge == 1:
-                bond_prob = [0, 0, -1, 0, 0, -1]*len(bons_list)
-            else :
-                bond_prob = [0, 0, 0, 0, 0, 0]*len(bons_list)
-
-            for i,b in enumerate(bons_list):
-                for j,match in enumerate(matches):
-                    c_idx, o_idx, n_idx, _ = match
-                    if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
-                        #report intensities on these bonds
-                        bond_prob[6*i:6*i+6] = inty[6*j:6*j+6]
-            print(bond_prob)
-        elif self.label_type == 'scarce':
-            bond_prob = inty
-        else :
-            raise NotImplementedError
-        y = torch.tensor(bond_prob, dtype=torch.float32).flatten()
-        data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr,y = y)
-
-        return data
 
