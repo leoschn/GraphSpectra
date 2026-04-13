@@ -47,8 +47,7 @@ alphabet = [
     "M(ox)"
 ]
 
-NODE_DIM = get_node_dim()
-EDGE_DIM = get_edge_dim()
+
 
 aa_to_int_dict = dict((aa, i) for i, aa in enumerate(alphabet))
 
@@ -389,6 +388,9 @@ def get_node_dim(exclude_feature=None):
     mol_feats = precompute_mol_features(mol)
     node_dim = len(atom_featurizer(mol.GetAtoms()[0], mol_feats, exclude_feature))
     return node_dim
+
+NODE_DIM = get_node_dim()
+EDGE_DIM = get_edge_dim()
 
 def get_node_features(mol, exclude_feature=None):
     num_atoms = mol.GetNumAtoms()
