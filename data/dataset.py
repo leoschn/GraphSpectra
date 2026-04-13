@@ -11,8 +11,8 @@ from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
 from torch_geometric.data import InMemoryDataset
 
+from multiprocessing import Pool, cpu_count
 
-from rdkit import Chem
 from rdkit import Chem, RDConfig, RDLogger
 from rdkit.Chem import AllChem
 from rdkit.Chem import Lipinski
@@ -49,7 +49,6 @@ aa_to_int_dict = dict((aa, i) for i, aa in enumerate(alphabet))
 
 int_to_aa_dict = dict((i, aa) for i, aa in enumerate(alphabet))
 
-from rdkit import Chem
 from rdkit.Chem import rdmolops
 import re
 
