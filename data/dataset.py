@@ -461,6 +461,7 @@ class SpectraGraphDatasetPrec(InMemoryDataset):
             length = intensity.shape[0]
 
             for idx in range(length):
+                print('Processing', idx,' of ',length)
                 # --- Load raw data ---
                 seq = ''.join(int_to_aa_dict[n] for n in sequence[idx].tolist())
                 inty = intensity[idx]
