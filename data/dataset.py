@@ -491,39 +491,15 @@ def process_one(i):
         edge_index = np.array(edges).T
         edge_attr = get_edge_features(mol)
 
-        edge_index, edge_attr = to_undirected(edge_index, edge_attr)
 
         # ---- labels ----
-        bonds_list = list(mol.GetBonds())
-
-        # if LABEL_TYPE == "full":
-        #     peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
-        #     matches = mol.GetSubstructMatches(peptide_pattern)
-        #
-        #     if charge == 0:
-        #         bond_prob = [0, -1, -1, 0, -1, -1] * len(bonds_list)
-        #     elif charge == 1:
-        #         bond_prob = [0, 0, -1, 0, 0, -1] * len(bonds_list)
-        #     else:
-        #         bond_prob = [0] * 6 * len(bonds_list)
-        #
-        #     for i_bond, b in enumerate(bonds_list):
-        #         for match in matches:
-        #             c_idx, o_idx, n_idx, _ = match
-        #             if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
-        #                 bond_prob[6 * i_bond:6 * i_bond + 6] = inty[6 * matches.index(match):6 * matches.index(match) + 6]
-        #
-        # elif LABEL_TYPE == "scarce":
-        bond_prob = inty
-
-
-        y = np.array(bond_prob, dtype=np.float32)
+        y = np.array(inty, dtype=np.float32)
 
         return {
-            "x": x.numpy(),
-            "edge_index": edge_index.numpy(),
-            "edge_attr": edge_attr.numpy(),
-            "y": y.numpy()
+            "x": x,
+            "edge_index": edge_index,
+            "edge_attr": edge_attr,
+            "y": y
         }
 
     except Exception as e:
