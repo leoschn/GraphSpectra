@@ -539,7 +539,6 @@ class SpectraGraphDatasetPrec(InMemoryDataset):
 
         self.data_source = data_source
         self.label_type = label_type
-        self.root = root
         super().__init__(root, transform, pre_transform)
 
         self.data, self.slices = torch.load(self.processed_paths[0])
@@ -550,7 +549,7 @@ class SpectraGraphDatasetPrec(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return [self.root]
+        return ['data.pt']
 
     def download(self):
         pass
