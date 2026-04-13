@@ -426,20 +426,123 @@ def precompute_mol_features(mol):
     return CrippenContribs, TPSAContribs, LabuteASAContribs, GasteigerCharges
 
 
+# =========================
+# GLOBALS for multiprocessing
+# =========================
+SEQ = None
+INTY = None
+CHARGE = None
+ENERGY = None
+LABEL_TYPE = None
+
+
+# =========================
+# Worker initializer
+# =========================
+def init_worker(seq, inty, charge, energy, label_type):
+    global SEQ, INTY, CHARGE, ENERGY, LABEL_TYPE
+    SEQ = seq
+    INTY = inty
+    CHARGE = charge
+    ENERGY = energy
+    LABEL_TYPE = label_type
+
+
+# =========================
+# Worker function
+# =========================
+
+def process_one(i):
+    seq = ''.join(int_to_aa_dict[n] for n in SEQ[i].tolist())
+    inty = INTY[i]
+    charge_ohe = CHARGE[i]
+    energy = ENERGY[i]
+
+    charge = np.argmax(charge_ohe)
+
+    # ---- molecule ----
+    if '(ox)' in seq:
+        mol = seq_to_mol_with_ox(seq)
+    else:
+        mol = Chem.MolFromSequence(seq)
+
+    if mol is None:
+        return None
+
+    # ---- node features ----
+    x_local = torch.from_numpy(get_node_features(mol)).float()
+    x_global = torch.from_numpy(get_global_feature(mol, charge_ohe, energy)).float()
+    x = torch.cat([x_local, x_global], dim=1)
+
+    # ---- edges ----
+    edges = [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()]
+    if len(edges) == 0:
+        return None
+
+    edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
+    edge_attr = torch.from_numpy(get_edge_features(mol)).float()
+
+    edge_index, edge_attr = to_undirected(edge_index, edge_attr)
+
+    # ---- labels ----
+    bonds_list = list(mol.GetBonds())
+
+    # if LABEL_TYPE == "full":
+    #     peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
+    #     matches = mol.GetSubstructMatches(peptide_pattern)
+    #
+    #     if charge == 0:
+    #         bond_prob = [0, -1, -1, 0, -1, -1] * len(bonds_list)
+    #     elif charge == 1:
+    #         bond_prob = [0, 0, -1, 0, 0, -1] * len(bonds_list)
+    #     else:
+    #         bond_prob = [0] * 6 * len(bonds_list)
+    #
+    #     for i_bond, b in enumerate(bonds_list):
+    #         for match in matches:
+    #             c_idx, o_idx, n_idx, _ = match
+    #             if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
+    #                 bond_prob[6 * i_bond:6 * i_bond + 6] = inty[6 * matches.index(match):6 * matches.index(match) + 6]
+    #
+    # elif LABEL_TYPE == "scarce":
+    bond_prob = inty
+
+
+    y = torch.tensor(bond_prob, dtype=torch.float32).flatten()
+
+    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
+
+
+# =========================
+# Batch processing with multiprocessing
+# =========================
+def process_batch(start, end, sequence, intensity, charge, energy, label_type):
+    seq_batch = sequence[start:end]
+    inty_batch = intensity[start:end]
+    charge_batch = charge[start:end]
+    energy_batch = energy[start:end]
+
+    n_workers = min(cpu_count(), 40)
+
+    with Pool(
+        processes=n_workers,
+        initializer=init_worker,
+        initargs=(seq_batch, inty_batch, charge_batch, energy_batch, label_type)
+    ) as pool:
+        results = pool.map(process_one, range(end - start))
+
+    return [r for r in results if r is not None]
+
+
 class SpectraGraphDatasetPrec(InMemoryDataset):
-    def __init__(self, root, data_source, label_type="full", transform=None, pre_transform=None):
-        """
-        Args:
-            root: where processed file will be stored
-            data_source: path to HDF5 file
-            label_type: 'full' or 'scarce'
-        """
+    def __init__(self, root, data_source, label_type="full",
+                 transform=None, pre_transform=None):
+
         self.data_source = data_source
         self.label_type = label_type
-
+        self.root = root
         super().__init__(root, transform, pre_transform)
 
-        # load processed data
         self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
@@ -448,13 +551,13 @@ class SpectraGraphDatasetPrec(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return ["data.pt"]
+        return [self.root]
 
     def download(self):
-        # not needed
         pass
 
     def process(self):
+
         data_list = []
 
         with h5py.File(self.data_source, "r") as f:
@@ -464,99 +567,23 @@ class SpectraGraphDatasetPrec(InMemoryDataset):
             energy_list = f["collision_energy_aligned"]
 
             length = intensity.shape[0]
-
-            batch_size = 512  # tune: 256–2048 depending on RAM
+            batch_size = 512
 
             for start in range(0, length, batch_size):
                 end = min(start + batch_size, length)
 
-                print(f"Processing {start} - {end} / {length}")
+                print(f"Processing {start}-{end}/{length}")
 
-                # ===== batch read (FAST) =====
-                seq_batch = sequence[start:end]
-                inty_batch = intensity[start:end]
-                charge_batch = precursor_charge_onehot[start:end]
-                energy_batch = energy_list[start:end]
+                batch_data = process_batch(
+                    start, end,
+                    sequence,
+                    intensity,
+                    precursor_charge_onehot,
+                    energy_list,
+                    self.label_type
+                )
 
-                # ===== process inside batch =====
-                for i in range(end - start):
-                    seq = ''.join(int_to_aa_dict[n] for n in seq_batch[i].tolist())
-                    inty = inty_batch[i]
-                    charge_ohe = charge_batch[i]
-                    charge = np.argmax(charge_ohe)
-                    energy = energy_batch[i]
+                data_list.extend(batch_data)
 
-                    # --- Build molecule ---
-                    if '(ox)' in seq:
-                        mol = seq_to_mol_with_ox(seq)
-                    else:
-                        mol = Chem.MolFromSequence(seq)
-
-                    if mol is None:
-                        continue  # skip bad samples
-
-                    # --- Node features ---
-                    x_local = torch.from_numpy(get_node_features(mol), dtype=torch.float32)
-                    x_global = torch.from_numpy(get_global_feature(mol, charge_ohe, energy), dtype=torch.float32)
-                    x = torch.cat([x_local, x_global], dim=1)
-
-                    # --- Edges ---
-                    edge_index = []
-
-                    edges = [(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()) for bond in mol.GetBonds()]
-                    edge_index = torch.tensor(edges, dtype=torch.long).t()
-
-                    if len(edge_index) == 0:
-                        continue  # skip isolated cases
-
-                    edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
-                    edge_attr = torch.from_numpy(get_edge_features(mol), dtype=torch.float32)
-
-                    edge_index, edge_attr = to_undirected(edge_index, edge_attr)
-
-                    # --- Labels ---
-                    bonds_list = list(mol.GetBonds())
-
-                    if self.label_type == 'full':
-                        peptide_pattern = Chem.MolFromSmarts("C(=O)N[C]")
-                        matches = mol.GetSubstructMatches(peptide_pattern)
-
-                        if charge == 0:
-                            bond_prob = [0, -1, -1, 0, -1, -1] * len(bonds_list)
-                        elif charge == 1:
-                            bond_prob = [0, 0, -1, 0, 0, -1] * len(bonds_list)
-                        else:
-                            bond_prob = [0, 0, 0, 0, 0, 0] * len(bonds_list)
-
-                        for a, b in enumerate(bonds_list):
-                            for j, match in enumerate(matches):
-                                c_idx, o_idx, n_idx, _ = match
-                                if b.GetBeginAtomIdx() == c_idx and b.GetEndAtomIdx() == n_idx:
-                                    bond_prob[6*i:6*a+6] = inty[6*j:6*j+6]
-
-                    elif self.label_type == 'scarce':
-                        bond_prob = inty
-
-                    else:
-                        raise NotImplementedError
-
-                    y = torch.tensor(bond_prob, dtype=torch.float32).flatten()
-
-                    # --- Create Data object ---
-                    data = Data(
-                        x=x,
-                        edge_index=edge_index,
-                        edge_attr=edge_attr,
-                        y=y
-                    )
-
-                    # optional transform
-                    if self.pre_transform is not None:
-                        data = self.pre_transform(data)
-
-                    data_list.append(data)
-
-        # --- Collate & save ---
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
-
