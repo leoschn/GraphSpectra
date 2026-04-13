@@ -381,16 +381,14 @@ def get_edge_dim(exclude_feature=None):
 def get_node_dim(exclude_feature=None):
     """Hacky way to get node dim from atom_featurizer"""
     mol = Chem.MolFromSmiles('CC')
-    if exclude_feature:
-        node_dim = len(atom_featurizer(mol.GetAtoms()[0], exclude_feature))
-    else:
-        node_dim = len(atom_featurizer(mol.GetAtoms()[0], exclude_feature))
+    mol_feats = precompute_mol_features(mol)
+    node_dim = len(atom_featurizer(mol.GetAtoms()[0], mol_feats, exclude_feature))
     return node_dim
 
 def get_node_features(mol, exclude_feature=None):
     num_atoms = mol.GetNumAtoms()
     node_features = np.zeros((num_atoms, get_node_dim()), dtype=np.float32)
-
+    mol_feats = precompute_mol_features(mol)
     for i, atom in enumerate(mol.GetAtoms()):
         node_features[i] = atom_featurizer(atom, mol_feats, exclude_feature)
     return node_features
