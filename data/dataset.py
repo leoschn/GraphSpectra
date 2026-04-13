@@ -47,10 +47,8 @@ alphabet = [
     "M(ox)"
 ]
 
-if NODE_DIM is None:
-    NODE_DIM = get_node_dim()
-if EDGE_DIM is None:
-    EDGE_DIM = get_edge_dim()
+NODE_DIM = get_node_dim()
+EDGE_DIM = get_edge_dim()
 
 aa_to_int_dict = dict((aa, i) for i, aa in enumerate(alphabet))
 
