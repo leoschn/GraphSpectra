@@ -82,13 +82,13 @@ if __name__ == '__main__':
     # -----------------------
     # Data
     # -----------------------
-    train_dataset = SpectraGraphDataset(
+    train_dataset = SpectraGraphDatasetPrec(
         data_source=args.dataset_train, label_type='scarce'
     )
-    val_dataset = SpectraGraphDataset(
+    val_dataset = SpectraGraphDatasetPrec(
         data_source=args.dataset_val, label_type='scarce'
     )
-    test_dataset = SpectraGraphDataset(
+    test_dataset = SpectraGraphDatasetPrec(
         data_source=args.dataset_test, label_type='scarce'
     )
 
