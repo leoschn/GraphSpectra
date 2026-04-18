@@ -89,6 +89,6 @@ def preprocess_to_chunks(data_source, out_dir, label_type="full"):
 # =========================
 if __name__ == "__main__":
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd_reduced.h5",
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd_reduced.hdf5",
         out_dir="processed_graphs_holdout_hcd_reduced"
     )
