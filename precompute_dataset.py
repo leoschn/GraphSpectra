@@ -1,80 +1,94 @@
-import torch
-from torch_geometric.loader import DataLoader
-from tqdm import tqdm
-import wandb
 import os
+import torch
+import h5py
+from multiprocessing import Pool, cpu_count
+import numpy as np
+from torch_geometric.data import Data
+from torch_geometric.utils import to_undirected
+from .data.streamed_dataset import process_batch
 
-from data.dataset import *
-from model.model import AttentiveFPGraphRegressor
-from model.losses import masked_spectral_distance
-from config import load_args
+# ===== IMPORT YOUR EXISTING FUNCTIONS =====
+# (keep all your RDKit + feature code exactly as is)
+# - process_batch
+# - seq_to_mol_with_ox
+# - get_node_features
+# etc.
 
-def train(epoch):
-    model.train()
-    total_loss = 0
-
-    pbar = tqdm(train_loader, desc=f"Epoch {epoch:03d} [Train]")
-
-    for data in pbar:
-        data = data.to(device)
-
-        optimizer.zero_grad()
-        out = model(data)
-
-        loss = masked_spectral_distance(out, data.y.view(data.num_graphs, -1))
-        loss.backward()
-        optimizer.step()
-
-        total_loss += loss.item() * data.num_graphs
-
-        # Update progress bar
-        pbar.set_postfix(loss=loss.item())
-
-        # Log per batch (optional, can comment if too verbose)
-        wandb.log({"train_batch_loss": loss.item()})
-
-    epoch_loss = total_loss / len(train_loader.dataset)
-
-    return epoch_loss
+# =========================================
 
 
-@torch.no_grad()
-def evaluate(loader, split="val"):
-    model.eval()
-    total_loss = 0
-
-    pbar = tqdm(loader, desc=f"[{split.upper()}]")
-
-    for data in pbar:
-        data = data.to(device)
-        out = model(data)
-
-        loss = masked_spectral_distance(out, data.y.view(data.num_graphs, -1))
-        total_loss += loss.item() * data.num_graphs
-
-        pbar.set_postfix(loss=loss.item())
-
-    return total_loss / len(loader.dataset)
+# =========================
+# CONFIG
+# =========================
+CHUNK_SIZE = 2000
+BATCH_SIZE = 512
+N_WORKERS = min(cpu_count(), 8)
 
 
-if __name__ == '__main__':
+# =========================
+# SAVE CHUNK + METADATA
+# =========================
+def save_chunk(buffer, out_dir, chunk_id):
+    path = os.path.join(out_dir, f"chunk_{chunk_id}.pt")
+    torch.save(buffer, path)
 
-    args = load_args()
+    meta_path = os.path.join(out_dir, "meta.txt")
+    with open(meta_path, "a") as f:
+        f.write(f"{path},{len(buffer)}\n")
 
-    # -----------------------
-    # Data
-    # -----------------------
-    train_dataset = SpectraGraphDatasetPrec(
-        data_source=args.dataset_train, label_type='scarce',root=args.root_train,
+
+# =========================
+# MAIN PREPROCESS FUNCTION
+# =========================
+def preprocess_to_chunks(data_source, out_dir, label_type="full"):
+    os.makedirs(out_dir, exist_ok=True)
+
+    # reset metadata
+    open(os.path.join(out_dir, "meta.txt"), "w").close()
+
+    buffer = []
+    chunk_id = 0
+
+    with h5py.File(data_source, "r") as f:
+        intensity = f["intensities_raw"]
+        sequence = f["sequence_integer"]
+        precursor_charge_onehot = f["precursor_charge_onehot"]
+        energy_list = f["collision_energy_aligned"]
+
+        length = intensity.shape[0]
+
+        for start in range(0, length, BATCH_SIZE):
+            end = min(start + BATCH_SIZE, length)
+            print(f"Processing {start}-{end}/{length}")
+
+            batch_data = process_batch(
+                start, end,
+                sequence,
+                intensity,
+                precursor_charge_onehot,
+                energy_list,
+                label_type
+            )
+
+            for data in batch_data:
+                buffer.append(data)
+
+                if len(buffer) >= CHUNK_SIZE:
+                    save_chunk(buffer, out_dir, chunk_id)
+                    buffer = []
+                    chunk_id += 1
+
+        if buffer:
+            save_chunk(buffer, out_dir, chunk_id)
+
+    print("Preprocessing DONE ✅")
+
+
+# =========================
+# RUN
+# =========================
+if __name__ == "__main__":
+    preprocess_to_chunks(
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd_reduced.h5",
+        out_dir="processed_graphs_holdout_hcd_reduced"
     )
-    val_dataset = SpectraGraphDatasetPrec(
-        data_source=args.dataset_val, label_type='scarce',root=args.root_val,
-    )
-    test_dataset = SpectraGraphDatasetPrec(
-        data_source=args.dataset_test, label_type='scarce',root=args.root_test,
-    )
-
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True,num_workers=6,pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
-
