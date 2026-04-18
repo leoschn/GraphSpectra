@@ -40,7 +40,7 @@ def save_chunk(buffer, out_dir, chunk_id):
 # =========================
 # MAIN PREPROCESS FUNCTION
 # =========================
-def preprocess_to_chunks(data_source, out_dir, label_type="full"):
+def preprocess_to_chunks(data_source, out_dir):
     os.makedirs(out_dir, exist_ok=True)
 
     # reset metadata
@@ -66,8 +66,7 @@ def preprocess_to_chunks(data_source, out_dir, label_type="full"):
                 sequence,
                 intensity,
                 precursor_charge_onehot,
-                energy_list,
-                label_type
+                energy_list
             )
 
             for data in batch_data:
