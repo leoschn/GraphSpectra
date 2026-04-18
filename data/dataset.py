@@ -142,8 +142,8 @@ def seq_to_mol_with_ox(seq):
 atom_features = [
     'chiral_center',# dim 1
     'cip_code', # dim 2
-    # 'crippen_log_p_contrib', #dim 1
-    # 'crippen_molar_refractivity_contrib', #dim 1
+    'crippen_log_p_contrib', #dim 1
+    'crippen_molar_refractivity_contrib', #dim 1
     'degree', #dim 6
     'element', #dim 12
     'formal_charge', #dim 3
