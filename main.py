@@ -16,6 +16,8 @@ def train(epoch):
     pbar = tqdm(train_loader, desc=f"Epoch {epoch:03d} [Train]")
 
     for data in pbar:
+        print(data.x.shape)
+        print(data.edge_index.shape)
         data = data.to(device)
 
         optimizer.zero_grad()
