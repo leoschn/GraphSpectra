@@ -6,10 +6,9 @@ import ast
 import h5py
 import os
 
-from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
-from torch_geometric.data import InMemoryDataset
+from torch_geometric.data import Dataset
 
 from multiprocessing import Pool, cpu_count
 import torch.multiprocessing as mp
