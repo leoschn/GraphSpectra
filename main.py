@@ -101,8 +101,7 @@ if __name__ == '__main__':
     model = AttentiveFPGraphRegressor(
         node_feat_dim=train_dataset[0].x.shape[1],
         edge_feat_dim=train_dataset[0].edge_attr.shape[1],
-        hidden_dim=config.hidden_dim,
-        hidden_layers=args.hidden_layers,
+        hidden_dim=args.hidden_dim,
         num_layers=args.num_layers,
         num_timesteps=args.num_timesteps,
         out_dim=174
