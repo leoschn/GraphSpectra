@@ -5,6 +5,7 @@ import torch
 import ast
 import h5py
 import os
+import bisect
 
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
