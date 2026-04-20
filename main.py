@@ -103,17 +103,18 @@ if __name__ == '__main__':
     )
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('device used:', device)
+    print('Device used:', device)
     model = model.to(device)
-
+    print('Model loaded.')
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
-
+    print('Optimizer loaded.')
     # Optional: track gradients & model
-    wandb.watch(model, log="all", log_freq=100)
+    #wandb.watch(model, log="all", log_freq=100)
 
     # -----------------------
     # Training loop
     # -----------------------
+    print('Starting Training...')
     for epoch in range(1, config.epochs + 1):
         train_loss = train(epoch)
         val_loss = evaluate(val_loader, split="val")
