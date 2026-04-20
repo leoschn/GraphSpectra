@@ -84,9 +84,9 @@ if __name__ == '__main__':
     # -----------------------
     # Data
     # -----------------------
-    train_dataset = SpectraGraphDatasetPrec(root=args.root_train)
-    val_dataset = SpectraGraphDatasetPrec(root=args.root_train)
-    test_dataset = SpectraGraphDatasetPrec(root=args.root_train)
+    train_dataset = StreamingSpectraDataset(root=args.root_train)
+    val_dataset = StreamingSpectraDataset(root=args.root_train)
+    test_dataset = StreamingSpectraDataset(root=args.root_train)
 
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True,num_workers=6,pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
