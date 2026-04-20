@@ -563,9 +563,6 @@ class StreamingSpectraDataset(Dataset):
         self.root = root
         meta_file = os.path.join(root, "meta.txt")
 
-        self.node_dim = get_node_dim()
-        self.edge_dim = get_edge_dim()
-
         self.chunk_files = []
         self.cumulative_sizes = []
 

@@ -86,8 +86,7 @@ if __name__ == '__main__':
     val_dataset = StreamingSpectraDataset(root=args.root_train)
     test_dataset = StreamingSpectraDataset(root=args.root_train)
     print('Data loaded.')
-    print('Data dim -- node : ', train_dataset.node_dim,' edge : ', train_dataset.edge_dim, ' --')
-    print('Effective dim : ', train_dataset[0].x.shape ,' edge : ',train_dataset[0].edge_attr.shape )
+    print('Data dim -- node : ', train_dataset[0].x.shape ,' edge : ',train_dataset[0].edge_attr.shape, ' y : ', train_dataset[0].y.shape )
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=False,num_workers=6,pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
@@ -96,8 +95,8 @@ if __name__ == '__main__':
     # Model
     # -----------------------
     model = AttentiveFPGraphRegressor(
-        node_feat_dim=train_dataset.node_dim,
-        edge_feat_dim=train_dataset.edge_dim,
+        node_feat_dim=train_dataset[0].x.shape[1],
+        edge_feat_dim=train_dataset[0].edge_attr.shape[1],
         hidden_dim=config.hidden_dim,
         out_dim=174
     )
