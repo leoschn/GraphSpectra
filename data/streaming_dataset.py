@@ -601,7 +601,7 @@ class StreamingSpectraDataset(Dataset):
 
         # load chunk if needed
         if chunk_idx != self.current_chunk_idx:
-            self.cache = torch.load(self.chunk_files[chunk_idx])
+            self.cache = torch.load(self.chunk_files[chunk_idx],weights_only=False)
             self.current_chunk_idx = chunk_idx
 
         return self.cache[local_idx]
