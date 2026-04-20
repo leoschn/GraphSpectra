@@ -88,10 +88,15 @@ def preprocess_to_chunks(data_source, out_dir):
 # =========================
 if __name__ == "__main__":
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/train_hcd_reduce.hdf5",
-        out_dir="processed_graphs_train_hcd_reduced"
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/train_hcd.hdf5",
+        out_dir="dataset/processed_graphs_train_hcd_full"
     )
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/val_hcd_reduce.hdf5",
-        out_dir="processed_graphs_val_hcd_reduced"
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/val_hcd.hdf5",
+        out_dir="dataset/processed_graphs_val_hcd_full"
+    )
+
+    preprocess_to_chunks(
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd.hdf5",
+        out_dir="dataset/processed_graphs_holdout_hcd_full"
     )
