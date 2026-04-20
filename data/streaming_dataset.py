@@ -588,7 +588,9 @@ class StreamingSpectraDataset(Dataset):
         print(f"Total graphs: {self.total_len}")
 
     def chunk_shuffle(self):
-        random.shuffle(self.chunk_files)
+        rest = self.chunk_files[:-1]
+        random.shuffle(rest)
+        self.chunk_files[:-1] = rest
 
     def len(self):
         return self.total_len
