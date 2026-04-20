@@ -5,7 +5,7 @@ from multiprocessing import Pool, cpu_count
 import numpy as np
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
-from data.streamed_dataset import process_batch
+from data.streaming_dataset import process_batch
 
 # ===== IMPORT YOUR EXISTING FUNCTIONS =====
 # (keep all your RDKit + feature code exactly as is)
