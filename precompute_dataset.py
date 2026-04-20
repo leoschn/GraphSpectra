@@ -20,8 +20,8 @@ from data.streaming_dataset import process_batch
 # =========================
 # CONFIG
 # =========================
-CHUNK_SIZE = 2000
-BATCH_SIZE = 512
+CHUNK_SIZE = 10240
+BATCH_SIZE = 1024
 N_WORKERS = min(cpu_count(), 8)
 
 
