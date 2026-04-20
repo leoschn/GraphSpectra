@@ -83,8 +83,8 @@ if __name__ == '__main__':
     # Data
     # -----------------------
     train_dataset = StreamingSpectraDataset(root=args.root_train)
-    val_dataset = StreamingSpectraDataset(root=args.root_train)
-    test_dataset = StreamingSpectraDataset(root=args.root_train)
+    val_dataset = StreamingSpectraDataset(root=args.root_val)
+    test_dataset = StreamingSpectraDataset(root=args.root_test)
     print('Data loaded.')
     print('Data dim -- node : ', train_dataset[0].x.shape ,' edge : ',train_dataset[0].edge_attr.shape, ' y : ', train_dataset[0].y.shape )
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=False,num_workers=6,pin_memory=True)
