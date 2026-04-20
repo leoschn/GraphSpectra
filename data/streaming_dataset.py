@@ -6,6 +6,7 @@ import ast
 import h5py
 import os
 import bisect
+import random
 
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
@@ -585,6 +586,9 @@ class StreamingSpectraDataset(Dataset):
         self.current_chunk_idx = -1
 
         print(f"Total graphs: {self.total_len}")
+
+    def chunk_shuffle(self):
+        random.shuffle(self.chunk_files)
 
     def len(self):
         return self.total_len

@@ -9,10 +9,11 @@ from model.model import AttentiveFPGraphRegressor
 from model.losses import masked_spectral_distance
 from config import load_args
 
-def train(epoch):
+def train(epoch,train_loader):
     model.train()
     total_loss = 0
-
+    #manual chunk level shuffle
+    train_loader.dataset.chunk_shuffle()
     pbar = tqdm(train_loader, desc=f"Epoch {epoch:03d} [Train]")
 
     for data in pbar:
@@ -121,7 +122,7 @@ if __name__ == '__main__':
     # -----------------------
     print('Starting Training...')
     for epoch in range(1, config.epochs + 1):
-        train_loss = train(epoch)
+        train_loss = train(epoch,train_loader)
         val_loss = evaluate(val_loader, split="val")
 
         print(f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
@@ -132,6 +133,7 @@ if __name__ == '__main__':
             "train_loss": train_loss,
             "val_loss": val_loss
         })
+
 
     # -----------------------
     # Test
