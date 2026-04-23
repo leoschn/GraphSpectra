@@ -113,17 +113,22 @@ if __name__ == '__main__':
     print('Model loaded.')
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
     print('Optimizer loaded.')
-    # Optional: track gradients & model
-    #wandb.watch(model, log="all", log_freq=100)
+
+    #save path dir creation
+    os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
 
     # -----------------------
     # Training loop
     # -----------------------
+    best_loss = float('inf')
     print('Starting Training...')
     for epoch in range(1, config.epochs + 1):
         train_loss = train(epoch,train_loader)
         val_loss = evaluate(val_loader, split="val")
-
+        #early stoping
+        if val_loss < best_loss:
+            best_loss = val_loss
+            torch.save(the_model.state_dict(), args.save_path)
         print(f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
 
         # Log per epoch
@@ -137,6 +142,7 @@ if __name__ == '__main__':
     # -----------------------
     # Test
     # -----------------------
+    model.load_state_dict(torch.load(args.save_path))
     test_loss = evaluate(test_loader, split="test")
     print("Test Loss:", test_loss)
 
