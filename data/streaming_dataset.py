@@ -49,14 +49,12 @@ alphabet = [
 ]
 
 
-
 aa_to_int_dict = dict((aa, i) for i, aa in enumerate(alphabet))
 
 int_to_aa_dict = dict((i, aa) for i, aa in enumerate(alphabet))
 
 from rdkit.Chem import rdmolops
 import re
-
 
 # --- Step 1: Parse sequence and detect oxidized methionine ---
 def parse_sequence(seq):
@@ -376,10 +374,7 @@ def gasteiger_charge(atom, mol_feats):
 def get_edge_dim(exclude_feature=None):
     """Hacky way to get edge dim from bond_featurizer"""
     mol = Chem.MolFromSmiles('CC')
-    if exclude_feature:
-        edge_dim = len(bond_featurizer(mol.GetBonds()[0], exclude_feature))
-    else:
-        edge_dim = len(bond_featurizer(mol.GetBonds()[0], exclude_feature))
+    edge_dim = len(bond_featurizer(mol.GetBonds()[0], exclude_feature))
 
     return edge_dim
 
