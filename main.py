@@ -128,7 +128,7 @@ if __name__ == '__main__':
         #early stoping
         if val_loss < best_loss:
             best_loss = val_loss
-            torch.save(the_model.state_dict(), args.save_path)
+            torch.save(model.state_dict(), args.save_path)
         print(f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
 
         # Log per epoch
