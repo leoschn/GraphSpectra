@@ -16,7 +16,7 @@ from multiprocessing import Pool, cpu_count
 import torch.multiprocessing as mp
 mp.set_sharing_strategy("file_system")
 
-from graph_creation_utils import *
+from data.graph_creation_utils import *
 
 
 # =========================
