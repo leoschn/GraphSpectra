@@ -4,6 +4,7 @@ from rdkit.Chem import Lipinski
 from rdkit.Chem import Crippen
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import rdPartialCharges
+from typing import Union, List
 
 alphabet = [
     "",
