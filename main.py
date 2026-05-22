@@ -102,7 +102,7 @@ if __name__ == '__main__':
         replace=False
     )
 
-    val_dataset = Subset(full_val_dataset, indices)
+    val_dataset = torch.utils.data.Subset(full_val_dataset, indices)
 
 
     test_dataset = StreamingSpectraDataset(root=args.root_test)
