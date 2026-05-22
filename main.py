@@ -82,7 +82,6 @@ if __name__ == '__main__':
             "lr": args.lr,
             "max_steps": args.max_steps,
             "eval_every": args.eval_every,
-            "save_every": args.save_every,
             "hidden_dim": args.hidden_dim,
             "num_layers": args.num_layers,
             "num_timesteps": args.num_timesteps,
