@@ -5,7 +5,7 @@ from rdkit.Chem import Crippen
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import rdPartialCharges
 from typing import Union, List
-
+import numpy as np
 alphabet = [
     "",
     "A",
