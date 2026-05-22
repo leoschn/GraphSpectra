@@ -409,4 +409,7 @@ def get_global_feature(mol,precursor_charge_onehot,energy):
     x_global = np.array([np.concatenate([precursor_charge_onehot,energy]) for n in range(num_node)])
     return x_global
 
+def get_aa_node_features(mol, exclude_feature=None):
+    #split mol into aa
+    num_atoms = mol.GetNumAtoms()
 
