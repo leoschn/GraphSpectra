@@ -6,7 +6,7 @@ from rdkit.Chem import Crippen
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import rdPartialCharges
 
-# from pICalculax import find_pKas, pI
+from data.pICalculax import find_pKas, pI
 
 from typing import Union, List
 import numpy as np
@@ -396,11 +396,10 @@ def aromaticity(mol):
     )
 
 def isoelectric_point(mol):
-    # pkalist, charge = find_pKas(mol)
-    # return encode(
-    #     x=pI(pkalist, charge)
-    # )
-    return encode(x=0.)
+    pkalist, charge = find_pKas(mol)
+    return encode(
+        x=pI(pkalist, charge)
+    )
 
 def isoelectic_point(mol):
     return isoelectric_point(mol)
