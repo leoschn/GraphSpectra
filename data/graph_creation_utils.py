@@ -400,7 +400,7 @@ def isoelectric_point(mol):
     # return encode(
     #     x=pI(pkalist, charge)
     # )
-    pass
+    return encode(x=0.)
 
 def isoelectic_point(mol):
     return isoelectric_point(mol)
