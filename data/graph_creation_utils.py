@@ -168,6 +168,22 @@ aa_features = ['log_p',#dim 1
                'num_atom'#dim 1
 ]
 
+def log_p():
+    pass
+
+def mol_weights():
+    pass
+
+def aromaticity():
+    pass
+
+def isoelectric_point():
+    pass
+
+def num_atom():
+    pass
+
+
 '''adopted from: https://github.com/akensert/GCN-retention-time-predictions'''
 
 def onehot_encode(x: Union[float, int, str],
