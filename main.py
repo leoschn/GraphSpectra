@@ -4,7 +4,7 @@ from tqdm import tqdm
 import wandb
 import os
 import itertools
-
+import numpy as np
 from data.streaming_dataset import StreamingSpectraDataset
 from model.model import AttentiveFPGraphRegressor
 from model.losses import masked_spectral_distance
