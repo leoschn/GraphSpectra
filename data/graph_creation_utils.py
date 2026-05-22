@@ -1,9 +1,13 @@
 from rdkit import Chem, RDConfig, RDLogger
 from rdkit.Chem import AllChem
+from rdkit.Chem import Descriptors
 from rdkit.Chem import Lipinski
 from rdkit.Chem import Crippen
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import rdPartialCharges
+
+from pICalculax import find_pKas, pI
+
 from typing import Union, List
 import numpy as np
 alphabet = [
@@ -152,36 +156,13 @@ bond_features = [
     'is_rotatable',#dim 1
 ]
 
-# hydrophobicity Descriptors.MolLogP(mol)
-# weigth = Descriptors.MolWt(mol)
-# aromaticity : if one atom is aromatic
-# Isolectric point
-# from pICalculax import find_pKas, pI
-# pkalist, charge = find_pKas(mol)
-# pIpred = pI(pkalist, charge)
-# number of atomes
 
 aa_features = ['log_p',#dim 1
                'mol_weight', #dim 1
                'aromaticity',#dim 2
-               'isoelectic_point',#dim 1
+               'isoelectric_point',#dim 1
                'num_atom'#dim 1
 ]
-
-def log_p():
-    pass
-
-def mol_weights():
-    pass
-
-def aromaticity():
-    pass
-
-def isoelectric_point():
-    pass
-
-def num_atom():
-    pass
 
 
 '''adopted from: https://github.com/akensert/GCN-retention-time-predictions'''
@@ -395,6 +376,44 @@ def gasteiger_charge(atom, mol_feats):
     _, _, _, gasteiger = mol_feats
     return encode(gasteiger[atom.GetIdx()])
 
+#custom aa features
+
+def log_p(mol):
+    return encode(
+        x=Descriptors.MolLogP(mol)
+    )
+
+def mol_weight(mol):
+    return encode(
+        x=Descriptors.MolWt(mol)
+    )
+
+def aromaticity(mol):
+    has_aromatic_atom = any(atom.GetIsAromatic() for atom in mol.GetAtoms())
+    return onehot_encode(
+        x=has_aromatic_atom,
+        allowable_set=[False, True]
+    )
+
+def isoelectric_point(mol):
+    return encode(
+        x=0.0
+    )
+
+    pkalist, charge = find_pKas(mol)
+    return encode(
+        x=pI(pkalist, charge)
+    )
+
+def isoelectic_point(mol):
+    return isoelectric_point(mol)
+
+def num_atom(mol):
+    return encode(
+        x=mol.GetNumAtoms()
+    )
+
+
 
 def get_edge_dim(exclude_feature=None):
     """Hacky way to get edge dim from bond_featurizer"""
@@ -427,6 +446,7 @@ def get_node_dim(exclude_feature=None):
 def get_node_aa_dim(exclude_feature=None):
     mol = Chem.MolFromFASTA('A')
     node_dim = len(aa_featurizer(mol, exclude_feature))
+    return node_dim
 
 NODE_DIM = get_node_dim()
 EDGE_DIM = get_edge_dim()
@@ -479,4 +499,3 @@ def get_aa_node_features(mol, exclude_feature=None):
     #split mol into aa
     aa_list = split_peptide_by_residue(mol)
     num_atoms = mol.GetNumAtoms()
-
