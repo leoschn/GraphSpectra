@@ -3,54 +3,60 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 import wandb
 import os
+import itertools
 
 from data.streaming_dataset import StreamingSpectraDataset
 from model.model import AttentiveFPGraphRegressor
 from model.losses import masked_spectral_distance
 from config import load_args
 
-def train(epoch,train_loader):
+
+def infinite_loader(loader):
+    """Creates an infinite dataloader iterator."""
+    while True:
+        loader.dataset.chunk_shuffle()  # reshuffle chunks every pass
+        for batch in loader:
+            yield batch
+
+
+def train_step(data):
     model.train()
-    total_loss = 0
-    #manual chunk level shuffle
-    train_loader.dataset.chunk_shuffle()
-    pbar = tqdm(train_loader, desc=f"Epoch {epoch:03d} [Train]")
 
-    for data in pbar:
-        data = data.to(device)
+    data = data.to(device)
 
-        optimizer.zero_grad()
-        out = model(data)
+    optimizer.zero_grad()
 
-        loss = masked_spectral_distance(out, data.y.view(data.num_graphs, -1))
-        loss.backward()
-        optimizer.step()
+    out = model(data)
 
-        total_loss += loss.item() * data.num_graphs
+    loss = masked_spectral_distance(
+        out,
+        data.y.view(data.num_graphs, -1)
+    )
 
-        # Update progress bar
-        pbar.set_postfix(loss=loss.item())
+    loss.backward()
+    optimizer.step()
 
-        # Log per batch (optional, can comment if too verbose)
-        wandb.log({"train_batch_loss": loss.item()})
-
-    epoch_loss = total_loss / len(train_loader.dataset)
-
-    return epoch_loss
+    return loss.item(), data.num_graphs
 
 
 @torch.no_grad()
 def evaluate(loader, split="val"):
     model.eval()
+
     total_loss = 0
 
     pbar = tqdm(loader, desc=f"[{split.upper()}]")
 
     for data in pbar:
         data = data.to(device)
+
         out = model(data)
 
-        loss = masked_spectral_distance(out, data.y.view(data.num_graphs, -1))
+        loss = masked_spectral_distance(
+            out,
+            data.y.view(data.num_graphs, -1)
+        )
+
         total_loss += loss.item() * data.num_graphs
 
         pbar.set_postfix(loss=loss.item())
@@ -61,6 +67,7 @@ def evaluate(loader, split="val"):
 if __name__ == '__main__':
 
     args = load_args()
+
     # -----------------------
     # WandB init
     # -----------------------
@@ -73,11 +80,12 @@ if __name__ == '__main__':
         config={
             "batch_size": args.batch_size,
             "lr": args.lr,
-            "epochs": args.epochs,
+            "max_steps": args.max_steps,
+            "eval_every": args.eval_every,
+            "save_every": args.save_every,
             "hidden_dim": args.hidden_dim,
             "num_layers": args.num_layers,
             "num_timesteps": args.num_timesteps,
-
         }
     )
 
@@ -87,13 +95,59 @@ if __name__ == '__main__':
     # Data
     # -----------------------
     train_dataset = StreamingSpectraDataset(root=args.root_train)
-    val_dataset = StreamingSpectraDataset(root=args.root_val)
+    full_val_dataset = StreamingSpectraDataset(root=args.root_val)
+
+    indices = np.random.RandomState(42).choice(
+        len(full_val_dataset),
+        size=50000,
+        replace=False
+    )
+
+    val_dataset = Subset(full_val_dataset, indices)
+
+
     test_dataset = StreamingSpectraDataset(root=args.root_test)
+
     print('Data loaded.')
-    print('Data dim -- node : ', train_dataset[0].x.shape ,' edge : ',train_dataset[0].edge_attr.shape, ' y : ', train_dataset[0].y.shape )
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=False,num_workers=6,pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=config.batch_size,num_workers=6,pin_memory=True)
+    print(
+        'Data dim -- node : ',
+        train_dataset[0].x.shape,
+        ' edge : ',
+        train_dataset[0].edge_attr.shape,
+        ' y : ',
+        train_dataset[0].y.shape
+    )
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=6,
+        pin_memory=True
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=config.batch_size,
+        num_workers=6,
+        pin_memory=True
+    )
+
+    full_val_loader = DataLoader(
+        full_val_dataset,
+        batch_size=config.batch_size,
+        num_workers=6,
+        pin_memory=True
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=config.batch_size,
+        num_workers=6,
+        pin_memory=True
+    )
+
+    train_iter = infinite_loader(train_loader)
 
     # -----------------------
     # Model
@@ -109,43 +163,98 @@ if __name__ == '__main__':
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Device used:', device)
+
     model = model.to(device)
+
     print('Model loaded.')
+
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+
     print('Optimizer loaded.')
 
-    #save path dir creation
+    # save path dir creation
     os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
 
     # -----------------------
-    # Training loop
+    # Step-based training loop
     # -----------------------
     best_loss = float('inf')
-    print('Starting Training...')
-    for epoch in range(1, config.epochs + 1):
-        train_loss = train(epoch,train_loader)
-        val_loss = evaluate(val_loader, split="val")
-        #early stoping
-        if val_loss < best_loss:
-            best_loss = val_loss
-            torch.save(model.state_dict(), args.save_path)
-        print(f"Epoch {epoch:03d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
 
-        # Log per epoch
+    print('Starting Training...')
+
+    pbar = tqdm(range(1, config.max_steps + 1), desc="Training")
+
+    for step in pbar:
+
+        data = next(train_iter)
+
+        train_loss, batch_size = train_step(data)
+
+        pbar.set_postfix(train_loss=train_loss)
+
+        # -----------------------
+        # Logging
+        # -----------------------
         wandb.log({
-            "epoch": epoch,
-            "train_loss": train_loss,
-            "val_loss": val_loss
+            "step": step,
+            "train_loss": train_loss
         })
 
+        # -----------------------
+        # Validation
+        # -----------------------
+        if step % config.eval_every == 0:
 
+            val_loss = evaluate(val_loader, split="val")
+
+            print(
+                f"\nStep {step:06d} | "
+                f"Train Loss: {train_loss:.4f} | "
+                f"Val Loss: {val_loss:.4f}"
+            )
+
+            wandb.log({
+                "step": step,
+                "val_loss": val_loss
+            })
+
+            # -----------------------
+            # Save best model
+            # -----------------------
+            if val_loss < best_loss:
+                best_loss = val_loss
+
+                torch.save(model.state_dict(), args.save_path)
+
+                print(f"Best model saved at step {step}")
+
+        if step % config.full_eval_every == 0:
+
+            full_val_loss = evaluate(val_loader, split="val")
+
+            print(
+                f"\nStep {step:06d} | "
+                f"Train Loss: {train_loss:.4f} | "
+                f"Full val Loss: {full_val_loss:.4f}"
+            )
+
+            wandb.log({
+                "step": step,
+                "val_loss": full_val_loss
+            })
     # -----------------------
     # Test
     # -----------------------
+    print("Loading best model...")
+
     model.load_state_dict(torch.load(args.save_path))
+
     test_loss = evaluate(test_loader, split="test")
+
     print("Test Loss:", test_loss)
 
-    wandb.log({"test_loss": test_loss})
+    wandb.log({
+        "test_loss": test_loss
+    })
 
     wandb.finish()

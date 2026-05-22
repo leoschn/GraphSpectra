@@ -61,18 +61,40 @@ def process_one(i):
         if mol is None:
             return None
 
-        # ---- node features ----
+        # ---- atomic node features ----
         x_local = get_node_features(mol)
         x_global = get_global_feature(mol, charge_ohe, energy)
         x = np.concatenate([x_local, x_global], axis=1)
 
-        # ---- edges ----
-        edges = [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()]
+        # AA node features
+        x_aa = np.zeros_like((num_aa,feature_aa)) #TODO réfléchir à l'initialisation (quelles informations physico chimiques)
+
+
+        # Global node
+        x_global = np.zeros_like((1,feature_global))
+
+        #  atom - atom edges (undirected edges are added later)
+        edges_atom_atom = [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()]
         if len(edges) == 0:
             return None
 
         edge_index = np.array(edges).T
         edge_attr = get_edge_features(mol)
+
+        # atom - AA edges
+        total_atom = max([atom.GetIdx() for atom in mol.GetAtoms()])
+
+        edges_atom_aa = [( atom.GetIdx(), total_atom + atom.GetMonomerInfo().GetResidueNumber() ) for atom in mol.GetAtoms()]
+
+
+
+        # AA - AA edges
+        total_aa = max([atom.GetMonomerInfo().GetResidueNumber() for atom in mol.GetAtoms()])
+        edges_aa_aa = [(idx,idx+1) for idx in range(total_atom +1,total_atom+ total_aa)]
+
+        # AA - global edges
+
+        edges_aa_global = [(idx,total_aa + total_atom +1) for idx in range(total_atom + 1,total_atom+ total_aa + 1)]
 
 
         # ---- labels ----
