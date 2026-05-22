@@ -152,6 +152,22 @@ bond_features = [
     'is_rotatable',#dim 1
 ]
 
+# hydrophobicity Descriptors.MolLogP(mol)
+# weigth = Descriptors.MolWt(mol)
+# aromaticity : if one atom is aromatic
+# Isolectric point
+# from pICalculax import find_pKas, pI
+# pkalist, charge = find_pKas(mol)
+# pIpred = pI(pkalist, charge)
+# number of atomes
+
+aa_features = ['log_p',#dim 1
+               'mol_weight', #dim 1
+               'aromaticity',#dim 2
+               'isoelectic_point',#dim 1
+               'num_atom'#dim 1
+]
+
 '''adopted from: https://github.com/akensert/GCN-retention-time-predictions'''
 
 def onehot_encode(x: Union[float, int, str],
@@ -185,6 +201,16 @@ def atom_featurizer(atom, mol_feats, exclude_feature):
             features.append(globals()[atom_feature](atom, mol_feats)) #molecule level prop
         else:
             features.append(globals()[atom_feature](atom)) #atome level prop
+
+    return np.concatenate(features, axis=0)
+
+def aa_featurizer(aa, exclude_feature):
+    new_aa_features = [i for i in aa_features if i != exclude_feature]
+
+    features = []
+
+    for aa_feature in new_aa_features:
+        features.append(globals()[aa_feature](aa)) #atome level prop
 
     return np.concatenate(features, axis=0)
 
@@ -382,8 +408,13 @@ def get_node_dim(exclude_feature=None):
     node_dim = len(atom_featurizer(mol.GetAtoms()[0], mol_feats, exclude_feature))
     return node_dim
 
+def get_node_aa_dim(exclude_feature=None):
+    mol = Chem.MolFromFASTA('A')
+    node_dim = len(aa_featurizer(mol, exclude_feature))
+
 NODE_DIM = get_node_dim()
 EDGE_DIM = get_edge_dim()
+NODE_AA_DIM = get_node_aa_dim()
 
 
 
@@ -409,7 +440,27 @@ def get_global_feature(mol,precursor_charge_onehot,energy):
     x_global = np.array([np.concatenate([precursor_charge_onehot,energy]) for n in range(num_node)])
     return x_global
 
+def split_peptide_by_residue(mol):
+    # Group atom indices by residue number
+    residue_atoms = defaultdict(list)
+
+    for atom in mol.GetAtoms():
+        info = atom.GetMonomerInfo()
+        residue_number = info.GetResidueNumber()
+        residue_atoms[residue_number].append(atom.GetIdx())
+
+    residue_mols = []
+
+    for residue_number, atom_indices in residue_atoms.items():
+        # Create submolecule containing only residue atoms
+        submol = Chem.PathToSubmol(mol, atom_indices)
+
+        residue_mols.append((residue_number, submol))
+
+    return residue_mols
+
 def get_aa_node_features(mol, exclude_feature=None):
     #split mol into aa
+    aa_list = split_peptide_by_residue(mol)
     num_atoms = mol.GetNumAtoms()
 

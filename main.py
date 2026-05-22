@@ -97,11 +97,7 @@ if __name__ == '__main__':
     train_dataset = StreamingSpectraDataset(root=args.root_train)
     full_val_dataset = StreamingSpectraDataset(root=args.root_val)
 
-    indices = np.random.RandomState(42).choice(
-        len(full_val_dataset),
-        size=50000,
-        replace=False
-    )
+    indices = [i for i in range(50000)]
 
     val_dataset = torch.utils.data.Subset(full_val_dataset, indices)
 

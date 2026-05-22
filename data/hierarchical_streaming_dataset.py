@@ -69,14 +69,7 @@ def process_one(i):
         # AA node features
         x_aa = np.zeros_like((num_aa,feature_aa)) #TODO réfléchir à l'initialisation (quelles informations physico chimiques)
 
-        #hydrophobicity Descriptors.MolLogP(mol)
-        #weigth = Descriptors.MolWt(mol)
-        #aromaticity : if one atom is aromatic
-        #Isolectric point
-        # from pICalculax import find_pKas, pI
-        #pkalist, charge = find_pKas(mol)
-        #pIpred = pI(pkalist, charge)
-        #number of atomes
+
 
         # Global node
         x_global = np.zeros_like((1,feature_global))
