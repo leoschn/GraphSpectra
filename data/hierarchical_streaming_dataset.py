@@ -26,7 +26,30 @@ SEQ = None
 INTY = None
 CHARGE = None
 ENERGY = None
+GLOBAL_FEATURE_DIM = 64
+EDGE_TYPE_DIM = 4
+# [atom_atom, atom_aa, aa_aa, aa_global]
+NODE_TYPE_DIM = 3
+# [atom, aa, global]
 
+
+def _pad_features(features, before_dim, after_dim):
+    """Pad heterogeneous node features into one homogeneous feature space."""
+    return np.concatenate([
+        np.zeros((features.shape[0], before_dim), dtype=np.float32),
+        features.astype(np.float32),
+        np.zeros((features.shape[0], after_dim), dtype=np.float32),
+    ], axis=1)
+
+
+def _repeat_global_features(global_features, num_nodes):
+    return np.tile(global_features.reshape(1, -1), (num_nodes, 1)).astype(np.float32)
+
+
+def _edge_array(edges):
+    if len(edges) == 0:
+        return np.empty((0, 2), dtype=np.int64)
+    return np.asarray(edges, dtype=np.int64)
 
 # =========================
 # Worker initializer
@@ -61,44 +84,126 @@ def process_one(i):
         if mol is None:
             return None
 
-        # ---- atomic node features ----
-        x_local = get_node_features(mol)
-        x_global = get_global_feature(mol, charge_ohe, energy)
-        x = np.concatenate([x_local, x_global], axis=1)
+        # ---- hierarchical node features ----
+        global_features = np.concatenate([charge_ohe, energy]).astype(np.float32)
 
         # AA node features
-        x_aa = np.zeros_like((num_aa,feature_aa)) #TODO réfléchir à l'initialisation (quelles informations physico chimiques)
-
-
+        x_atom = get_node_features(mol)
+        x_aa = get_aa_node_features(mol)
 
         # Global node
-        x_global = np.zeros_like((1,feature_global))
+        x_global = np.zeros((1, 0), dtype=np.float32)
+
+        atom_dim = x_atom.shape[1]
+        aa_dim = x_aa.shape[1]
+
+        x_atom = _pad_features(x_atom, 0, aa_dim)
+        x_aa = _pad_features(x_aa, atom_dim, 0)
+        x_global = _pad_features(x_global, atom_dim + aa_dim, 0)
+
+        #add global feature (collision energy + charge)
+        x_atom = np.concatenate([
+            x_atom,
+            _repeat_global_features(global_features, x_atom.shape[0]),
+        ], axis=1)
+
+        x_aa = np.concatenate([
+            x_aa,
+            _repeat_global_features(global_features, x_aa.shape[0]),
+        ], axis=1)
+
+        x_global = np.concatenate([
+            x_global,
+            _repeat_global_features(global_features, x_global.shape[0]),
+        ], axis=1)
+
+
+        #add node type
+        node_type = np.concatenate([
+            np.tile([1, 0, 0], (x_atom.shape[0], 1)),
+            np.tile([0, 1, 0], (x_aa.shape[0], 1)),
+            np.tile([0, 0, 1], (x_global.shape[0], 1)),
+        ], axis=0).astype(np.float32)
+
+        #concatenate to a unified feature vector
+        x = np.concatenate([
+            np.concatenate([x_atom, x_aa, x_global], axis=0),
+            node_type,
+        ], axis=1)
 
         #  atom - atom edges (undirected edges are added later)
         edges_atom_atom = [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()]
-        if len(edges) == 0:
-            return None
-
-        edge_index = np.array(edges).T
-        edge_attr = get_edge_features(mol)
 
         # atom - AA edges
-        total_atom = max([atom.GetIdx() for atom in mol.GetAtoms()])
+        total_atom = mol.GetNumAtoms()
+        total_aa = x_aa.shape[0]
+        global_idx = total_atom + total_aa
 
-        edges_atom_aa = [( atom.GetIdx(), total_atom + atom.GetMonomerInfo().GetResidueNumber() ) for atom in mol.GetAtoms()]
-
-
+        residue_numbers = sorted({
+            atom.GetMonomerInfo().GetResidueNumber() for atom in mol.GetAtoms()
+        })
+        residue_to_node = {
+            residue_number: total_atom + idx
+            for idx, residue_number in enumerate(residue_numbers)
+        }
+        edges_atom_aa = [
+            (atom.GetIdx(), residue_to_node[atom.GetMonomerInfo().GetResidueNumber()])
+            for atom in mol.GetAtoms()
+        ]
 
         # AA - AA edges
-        total_aa = max([atom.GetMonomerInfo().GetResidueNumber() for atom in mol.GetAtoms()])
-        edges_aa_aa = [(idx,idx+1) for idx in range(total_atom +1,total_atom+ total_aa)]
+        edges_aa_aa = [
+            (total_atom + idx, total_atom + idx + 1)
+            for idx in range(total_aa - 1)
+        ]
 
         # AA - global edges
 
-        edges_aa_global = [(idx,total_aa + total_atom +1) for idx in range(total_atom + 1,total_atom+ total_aa + 1)]
+        edges_aa_global = [
+            (total_atom + idx, global_idx)
+            for idx in range(total_aa)
+        ]
 
+        edges = np.concatenate([
+            _edge_array(edges_atom_atom),
+            _edge_array(edges_atom_aa),
+            _edge_array(edges_aa_aa),
+            _edge_array(edges_aa_global),
+        ], axis=0)
+        edge_index = edges.T
+
+        bond_dim = get_edge_dim()
+        #physico-chemical prop for atom-atom, zero for others + one hot encoding edge type
+
+        edge_attr_atom_atom = np.concatenate([
+            get_edge_features(mol),
+            np.tile([1, 0, 0, 0], (len(edges_atom_atom), 1))
+        ], axis=1)
+
+        edge_attr_atom_aa = np.concatenate([
+            np.zeros((len(edges_atom_aa), bond_dim)),
+            np.tile([0, 1, 0, 0], (len(edges_atom_aa), 1))
+        ], axis=1)
+
+        edge_attr_aa_aa = np.concatenate([
+            np.zeros((len(edges_aa_aa), bond_dim)),
+            np.tile([0, 0, 1, 0], (len(edges_aa_aa), 1))
+        ], axis=1)
+
+        edge_attr_aa_global = np.concatenate([
+            np.zeros((len(edges_aa_global), bond_dim)),
+            np.tile([0, 0, 0, 1], (len(edges_aa_global), 1))
+        ], axis=1)
+
+        edge_attr = np.concatenate([
+            edge_attr_atom_atom,
+            edge_attr_atom_aa,
+            edge_attr_aa_aa,
+            edge_attr_aa_global,
+        ], axis=0)
 
         # ---- labels ----
+        #only for aa-aa bonds
         y = np.array(inty, dtype=np.float32)
 
         return {
@@ -116,7 +221,7 @@ def process_one(i):
 # =========================
 # Batch processing with multiprocessing
 # =========================
-def process_batch(start, end, sequence, intensity, charge, energy):
+def process_batch_hierarchical(start, end, sequence, intensity, charge, energy):
     try:
         seq_batch = sequence[start:end]
         inty_batch = intensity[start:end]
@@ -164,7 +269,7 @@ def process_batch(start, end, sequence, intensity, charge, energy):
 
 
 
-class StreamingSpectraDataset(Dataset):
+class HierarchicalStreamingSpectraDataset(Dataset):
     def __init__(self, root):
         super().__init__(root)
 

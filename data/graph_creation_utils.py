@@ -6,6 +6,8 @@ from rdkit.Chem import Crippen
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import rdPartialCharges
 
+from collections import defaultdict
+
 from data.pICalculax import find_pKas, pI
 
 from typing import Union, List
@@ -98,8 +100,11 @@ def oxidize_methionine(mol, residue_index):
             if atom.GetSymbol() == "S":
                 s_idx = atom.GetIdx()
 
-                # Add oxygen atom
-                o_idx = mol.AddAtom(Chem.Atom("O"))
+                # Add oxygen atom with the same residue metadata as sulfur so
+                # residue-based splitting keeps the oxidation inside methionine.
+                oxygen = Chem.Atom("O")
+                oxygen.SetMonomerInfo(info)
+                o_idx = mol.AddAtom(oxygen)
 
                 # Add double bond S=O
                 mol.AddBond(s_idx, o_idx, Chem.BondType.DOUBLE)
@@ -410,7 +415,6 @@ def num_atom(mol):
     )
 
 
-
 def get_edge_dim(exclude_feature=None):
     """Hacky way to get edge dim from bond_featurizer"""
     mol = Chem.MolFromSmiles('CC')
@@ -494,4 +498,9 @@ def split_peptide_by_residue(mol):
 def get_aa_node_features(mol, exclude_feature=None):
     #split mol into aa
     aa_list = split_peptide_by_residue(mol)
-    num_atoms = mol.GetNumAtoms()
+    num_aa = len(aa_list)
+    node_features = np.zeros((num_aa, NODE_AA_DIM), dtype=np.float32)
+    mol_feats = precompute_mol_features(mol)
+    for i, aa in enumerate(aa_list):
+        node_features[i] = aa_featurizer(aa[1], exclude_feature)
+    return node_features

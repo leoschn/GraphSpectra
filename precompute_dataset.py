@@ -6,6 +6,7 @@ import numpy as np
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
 from data.streaming_dataset import process_batch
+from data.hierarchical_streaming_dataset import process_batch_hierarchical
 
 # ===== IMPORT YOUR EXISTING FUNCTIONS =====
 # (keep all your RDKit + feature code exactly as is)
@@ -61,7 +62,7 @@ def preprocess_to_chunks(data_source, out_dir):
             end = min(start + BATCH_SIZE, length)
             print(f"Processing {start}-{end}/{length}")
 
-            batch_data = process_batch(
+            batch_data = process_batch_hierarchical(
                 start, end,
                 sequence,
                 intensity,
@@ -87,16 +88,17 @@ def preprocess_to_chunks(data_source, out_dir):
 # RUN
 # =========================
 if __name__ == "__main__":
-    preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/train_hcd.hdf5",
-        out_dir="dataset/processed_graphs_train_hcd_full"
-    )
-    preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/val_hcd.hdf5",
-        out_dir="dataset/processed_graphs_val_hcd_full"
-    )
-
-    preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd.hdf5",
-        out_dir="dataset/processed_graphs_holdout_hcd_full"
-    )
+    preprocess_to_chunks(data_source='dataset_dummy/val_hcd_reduce.hdf5', out_dir='dataset_dummy/test')
+    # preprocess_to_chunks(
+    #     data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/train_hcd.hdf5",
+    #     out_dir="dataset/processed_graphs_train_hcd_full"
+    # )
+    # preprocess_to_chunks(
+    #     data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/val_hcd.hdf5",
+    #     out_dir="dataset/processed_graphs_val_hcd_full"
+    # )
+    #
+    # preprocess_to_chunks(
+    #     data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd.hdf5",
+    #     out_dir="dataset/processed_graphs_holdout_hcd_full"
+    # )

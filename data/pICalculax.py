@@ -11,9 +11,13 @@ def find_pKas(mol, pkatable=pkatable, condensedtable=condensedtable, debug=False
 	"""This function finds pKa values in a supplied molecule by matching it up to SMARTS rules in a table
 	Returns the list of pKa values and a list with the charge of the group at pH levels blow the pKa.
 	Example: So histidine has a +1 charge at pH levels below the pKa of ~6"""
+
+	mol = Chem.Mol(mol)
+	_refresh_mol(mol)
+
 	chargelist = []
 	pkalist = []
-	dummy = Chem.MolFromSmarts('[#178]') #Used Gly instead of #0 or *, for compatibility with building blocks
+	dummy = Chem.MolFromSmiles('[He]') # Real inert marker used to prevent repeated matching.
 
 	if returnindices:
 		atomindices = []
@@ -31,7 +35,8 @@ def find_pKas(mol, pkatable=pkatable, condensedtable=condensedtable, debug=False
 			if returnindices:
 				for match in substructmatches:
 					atomindices += [[int(mol.GetAtomWithIdx(idx).GetProp('O_i')) for idx in match]] #Retrieve the original index of matches
-			mol = AllChem.ReplaceSubstructs(mol, s[1], dummy)[0] # Delete acidic/basic groups to prevent multiple matching
+				mol = AllChem.ReplaceSubstructs(mol, s[1], dummy)[0] # Delete acidic/basic groups to prevent multiple matching
+				_refresh_mol(mol)
 
 	#Look for molecular fragments with known pKa's
 	for s in pkatable:
@@ -51,6 +56,7 @@ def find_pKas(mol, pkatable=pkatable, condensedtable=condensedtable, debug=False
 				for match in substructmatches:
 					atomindices += [[int(mol.GetAtomWithIdx(idx).GetProp('O_i')) for idx in match]] #Retrieve the original i
 			mol = AllChem.ReplaceSubstructs(mol, s[1], dummy)[0]
+			_refresh_mol(mol)
 	if returnindices:
 		return pkalist, chargelist, atomindices
 	return pkalist, chargelist
@@ -113,6 +119,11 @@ def pred_pln(pln):
 			pred_mol(mol, sequence)
 		else: print("Conversion error with %s"%sequence)
 
+#added to work with manualy modified peptides
+def _refresh_mol(mol):
+    mol.UpdatePropertyCache(strict=False)
+    Chem.GetSymmSSSR(mol)
+    return mol
 
 if __name__ == '__main__':
 	#parse command line
