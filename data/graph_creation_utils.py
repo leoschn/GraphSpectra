@@ -153,7 +153,6 @@ atom_features = [
 ]
 
 bond_features = [
-    'bondstereo',#dim 4
     'bondtype',#dim 4
     'is_conjugated',#dim 1
     'is_in_ring',#dim 1
@@ -246,16 +245,6 @@ def is_rotatable(bond: Chem.Bond) -> List[float]:
         x=atom_indices in Lipinski._RotatableBonds(mol)
     )
 
-def bondstereo(bond: Chem.Bond) -> List[float]:
-    return onehot_encode(
-        x=bond.GetStereo(),
-        allowable_set=[
-            Chem.rdchem.BondStereo.STEREONONE,
-            Chem.rdchem.BondStereo.STEREOZ,
-            Chem.rdchem.BondStereo.STEREOE,
-            Chem.rdchem.BondStereo.STEREOANY,
-        ]
-    )
 
 def element(atom: Chem.Atom) -> List[float]:
     x = atom.GetSymbol()

@@ -5,7 +5,7 @@ from typing import Iterable, List
 import pandas as pd
 
 import data.graph_creation_utils as gcu
-from feature_exploration import sequence_to_mol, write_feature_exploration_report
+from atom_feature_exploration import sequence_to_mol, write_feature_exploration_report
 
 
 AA_ONE_HOT_FEATURE_LABELS = {

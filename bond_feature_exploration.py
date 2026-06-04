@@ -5,11 +5,10 @@ from typing import Iterable, List
 import pandas as pd
 
 import data.graph_creation_utils as gcu
-from feature_exploration import sequence_to_mol, write_feature_exploration_report
+from atom_feature_exploration import sequence_to_mol, write_feature_exploration_report
 
 
 BOND_ONE_HOT_FEATURE_LABELS = {
-    "bondstereo": ["none", "Z", "E", "any"],
     "bondtype": ["single", "double", "triple", "aromatic"],
 }
 
