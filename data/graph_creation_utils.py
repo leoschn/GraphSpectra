@@ -124,6 +124,7 @@ def seq_to_mol_with_ox(seq):
         mol = oxidize_methionine(mol, pos)
 
     Chem.SanitizeMol(mol)
+    Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
     return mol
 
 
@@ -136,19 +137,17 @@ atom_features = [
     'crippen_log_p_contrib', #dim 1
     'crippen_molar_refractivity_contrib', #dim 1
     'degree', #dim 6
-    'element', #dim 12
-    'formal_charge', #dim 3
+    'element', #dim 11
     'gasteiger_charge', #dim 1
-    'hybridization', #dim 6
+    'hybridization', #dim 5
     'is_aromatic',#dim 1
     'is_h_acceptor',#dim 1
     'is_h_donor',#dim 1
     'is_hetero',#dim 1
-    'is_in_ring_size_n',#dim 9
+    'is_in_ring_size_n',#dim 8
     'labute_asa_contrib',#dim 1
     'mass',#dim 1
     'num_hs',#dim 5
-    'num_radical_electrons',#dim 3
     'num_valence',#dim 7
     'tpsa_contrib',#dim 1
 ]
@@ -187,7 +186,7 @@ def bond_featurizer(bond: Chem.Bond,exclude_feature) -> np.ndarray:
         globals()[bond_feature](bond) for bond_feature in new_bond_features
     ], axis=0)
 
-def atom_featurizer(atom, mol_feats, exclude_feature):
+def atom_featurizer(atom, mol_feats, exclude_feature, concat=True):
     new_atom_features = [i for i in atom_features if i != exclude_feature]
 
     features = []
@@ -203,8 +202,10 @@ def atom_featurizer(atom, mol_feats, exclude_feature):
             features.append(globals()[atom_feature](atom, mol_feats)) #molecule level prop
         else:
             features.append(globals()[atom_feature](atom)) #atome level prop
-
-    return np.concatenate(features, axis=0)
+    if concat :
+        return np.concatenate(features, axis=0)
+    else:
+        return features
 
 def aa_featurizer(aa, exclude_feature):
     new_aa_features = [i for i in aa_features if i != exclude_feature]
@@ -259,7 +260,7 @@ def bondstereo(bond: Chem.Bond) -> List[float]:
 def element(atom: Chem.Atom) -> List[float]:
     x = atom.GetSymbol()
     allowable_set = [
-        'H', 'B', 'C', 'N', 'O', 'F', 'Si',
+        'B', 'C', 'N', 'O', 'Si',
         'P', 'S', 'Cl', 'Br', 'I','other'
     ]
     symbol = atom.GetSymbol()
@@ -268,17 +269,24 @@ def element(atom: Chem.Atom) -> List[float]:
     return onehot_encode(x=x, allowable_set=allowable_set)
 
 def hybridization(atom: Chem.Atom) -> List[float]:
+    x = atom.GetHybridization()
+    allowable_set = [
+        Chem.rdchem.HybridizationType.SP,
+        Chem.rdchem.HybridizationType.SP2,
+        Chem.rdchem.HybridizationType.SP3,
+        Chem.rdchem.HybridizationType.SP3D,
+        'other'
+    ]
+    if x not in allowable_set:
+        x = 'other'
+
     return onehot_encode(
-        x=atom.GetHybridization(),
-        allowable_set=[
-            Chem.rdchem.HybridizationType.S,
-            Chem.rdchem.HybridizationType.SP,
-            Chem.rdchem.HybridizationType.SP2,
-            Chem.rdchem.HybridizationType.SP3,
-            Chem.rdchem.HybridizationType.SP3D,
-            Chem.rdchem.HybridizationType.SP3D2,
-        ]
-    )
+        x=x, allowable_set=allowable_set)
+
+        #Chem.rdchem.HybridizationType.S removed (rare)
+        # Chem.rdchem.HybridizationType.SP3D2, removed (rare)
+        # other added
+
 
 def cip_code(atom: Chem.Atom) -> List[float]:
     if atom.HasProp("_CIPCode"):
@@ -292,13 +300,7 @@ def cip_code(atom: Chem.Atom) -> List[float]:
 
 def chiral_center(atom: Chem.Atom) -> List[float]:
     return encode(
-        x=atom.HasProp("_ChiralityPossible")
-    )
-
-def formal_charge(atom: Chem.Atom) -> List[float]:
-    return onehot_encode(
-        x=min(max(atom.GetFormalCharge(), -1), 1),
-        allowable_set=[-1, 0, 1]
+        x=atom.HasProp("_CIPCode")
     )
 
 def mass(atom: Chem.Atom) -> List[float]:
@@ -308,8 +310,8 @@ def mass(atom: Chem.Atom) -> List[float]:
 
 def num_hs(atom: Chem.Atom) -> List[float]:
     return onehot_encode(
-        x=min(atom.GetTotalNumHs(), 4),
-        allowable_set=[0, 1, 2, 3, 4]
+        x=min(atom.GetTotalNumHs(), 3),
+        allowable_set=[0, 1, 2, 3]
     )
 
 def num_valence(atom: Chem.Atom) -> List[float]:
@@ -319,7 +321,7 @@ def num_valence(atom: Chem.Atom) -> List[float]:
 
 def degree(atom: Chem.Atom) -> List[float]:
     return onehot_encode(
-        x=min(atom.GetDegree(), 5),
+        x=min(atom.GetTotalDegree(), 5),
         allowable_set=[0, 1, 2, 3, 4, 5]
     )
 
@@ -347,18 +349,11 @@ def is_h_acceptor(atom: Chem.Atom) -> List[float]:
     )
 
 def is_in_ring_size_n(atom: Chem.Atom) -> List[float]:
-    for ring_size in [10, 9, 8, 7, 6, 5, 4, 3, 0]:
+    for ring_size in [9, 8, 7, 6, 5, 4, 3, 0]:
         if atom.IsInRingSize(ring_size): break
     return onehot_encode(
-        x=ring_size,
-        allowable_set=[0, 3, 4, 5, 6, 7, 8, 9, 10]
-    )
-
-def num_radical_electrons(atom: Chem.Atom) -> List[float]:
-    num_radical_electrons = atom.GetNumRadicalElectrons()
-    return onehot_encode(
-        x=min(num_radical_electrons, 2),
-        allowable_set=[0, 1, 2]
+        x=max(0,ring_size),
+        allowable_set=[0, 3, 4, 5, 6, 7, 8, 9,]
     )
 
 def crippen_log_p_contrib(atom, mol_feats):
@@ -476,22 +471,91 @@ def get_global_feature(mol,precursor_charge_onehot,energy):
     x_global = np.array([np.concatenate([precursor_charge_onehot,energy]) for n in range(num_node)])
     return x_global
 
+def _atom_residue_number(atom):
+    info = atom.GetMonomerInfo()
+    if info is None:
+        return None
+    return info.GetResidueNumber()
+
+
+def _has_carbonyl_oxygen(atom, selected_atoms):
+    for bond in atom.GetBonds():
+        if bond.GetBondType() != Chem.BondType.DOUBLE:
+            continue
+
+        other = bond.GetOtherAtom(atom)
+        if other.GetIdx() in selected_atoms and other.GetSymbol() == "O":
+            return True
+
+    return False
+
+
+def _is_broken_peptide_carboxyl(atom, outside_atom, selected_atoms):
+    if atom.GetSymbol() != "C" or outside_atom.GetSymbol() != "N":
+        return False
+    return _has_carbonyl_oxygen(atom, selected_atoms)
+
+
+def _build_capped_residue_mol(mol, atom_indices):
+    selected_atoms = set(atom_indices)
+    editable_mol = Chem.RWMol()
+    old_to_new = {}
+
+    for atom_idx in atom_indices:
+        atom = Chem.Atom(mol.GetAtomWithIdx(atom_idx))
+        old_to_new[atom_idx] = editable_mol.AddAtom(atom)
+
+    for bond in mol.GetBonds():
+        begin_idx = bond.GetBeginAtomIdx()
+        end_idx = bond.GetEndAtomIdx()
+        if begin_idx in selected_atoms and end_idx in selected_atoms:
+            editable_mol.AddBond(
+                old_to_new[begin_idx],
+                old_to_new[end_idx],
+                bond.GetBondType(),
+            )
+
+    added_carboxyl_caps = set()
+    for atom_idx in atom_indices:
+        atom = mol.GetAtomWithIdx(atom_idx)
+        for neighbor in atom.GetNeighbors():
+            neighbor_idx = neighbor.GetIdx()
+            if neighbor_idx in selected_atoms:
+                continue
+            if atom_idx in added_carboxyl_caps:
+                continue
+            if not _is_broken_peptide_carboxyl(atom, neighbor, selected_atoms):
+                continue
+
+            oxygen = Chem.Atom("O")
+            info = atom.GetMonomerInfo()
+            if info is not None:
+                oxygen.SetMonomerInfo(info)
+            oxygen_idx = editable_mol.AddAtom(oxygen)
+            editable_mol.AddBond(old_to_new[atom_idx], oxygen_idx, Chem.BondType.SINGLE)
+            added_carboxyl_caps.add(atom_idx)
+
+    residue_mol = editable_mol.GetMol()
+    Chem.SanitizeMol(residue_mol)
+    Chem.AssignStereochemistry(residue_mol, cleanIt=True, force=True)
+    return residue_mol
+
+
 def split_peptide_by_residue(mol):
-    # Group atom indices by residue number
+    # Group atom indices by residue number, including PTM atoms that carry the
+    # same residue metadata as the modified residue.
     residue_atoms = defaultdict(list)
 
     for atom in mol.GetAtoms():
-        info = atom.GetMonomerInfo()
-        residue_number = info.GetResidueNumber()
+        residue_number = _atom_residue_number(atom)
+        if residue_number is None:
+            continue
         residue_atoms[residue_number].append(atom.GetIdx())
 
     residue_mols = []
 
     for residue_number, atom_indices in residue_atoms.items():
-        # Create submolecule containing only residue atoms
-        submol = Chem.PathToSubmol(mol, atom_indices)
-
-        residue_mols.append((residue_number, submol))
+        residue_mols.append((residue_number, _build_capped_residue_mol(mol, atom_indices)))
 
     return residue_mols
 
