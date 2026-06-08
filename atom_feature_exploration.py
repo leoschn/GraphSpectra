@@ -649,7 +649,7 @@ def main() -> None:
     parser.add_argument(
         "--limit",
         type=_positive_int,
-        default=1000,
+        default=10,
         help="Maximum number of sequences to process.",
     )
     parser.add_argument(

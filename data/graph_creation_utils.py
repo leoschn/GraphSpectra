@@ -147,9 +147,10 @@ atom_features = [
     'is_in_ring_size_n',#dim 8
     'labute_asa_contrib',#dim 1
     'mass',#dim 1
-    'num_hs',#dim 5
+    'num_hs',#dim 4
     'num_valence',#dim 7
     'tpsa_contrib',#dim 1
+    'conformation' #dim 3 warning : largely increase computing time
 ]
 
 bond_features = [
@@ -196,7 +197,8 @@ def atom_featurizer(atom, mol_feats, exclude_feature, concat=True):
             'crippen_molar_refractivity_contrib',
             'tpsa_contrib',
             'labute_asa_contrib',
-            'gasteiger_charge'
+            'gasteiger_charge',
+            'conformation'
         ]:
             features.append(globals()[atom_feature](atom, mol_feats)) #molecule level prop
         else:
@@ -346,24 +348,32 @@ def is_in_ring_size_n(atom: Chem.Atom) -> List[float]:
     )
 
 def crippen_log_p_contrib(atom, mol_feats):
-    crippen, _, _, _ = mol_feats
+    crippen, _, _, _, _ = mol_feats
     return encode(crippen[atom.GetIdx()][0])
 
 def crippen_molar_refractivity_contrib(atom, mol_feats):
-    crippen, _, _, _ = mol_feats
+    crippen, _, _, _, _ = mol_feats
     return encode(crippen[atom.GetIdx()][1])
 
 def tpsa_contrib(atom, mol_feats):
-    _, tpsa, _, _ = mol_feats
+    _, tpsa, _, _, _ = mol_feats
     return encode(tpsa[atom.GetIdx()])
 
 def labute_asa_contrib(atom, mol_feats):
-    _, _, labute, _ = mol_feats
+    _, _, labute, _, _ = mol_feats
     return encode(labute[atom.GetIdx()])
 
 def gasteiger_charge(atom, mol_feats):
-    _, _, _, gasteiger = mol_feats
+    _, _, _, gasteiger,_ = mol_feats
     return encode(gasteiger[atom.GetIdx()])
+
+def conformation(atom, mol_feats):
+    _, _, _, _, conf = mol_feats
+    if conf :
+        pos = conf.GetAtomPosition(atom.GetIdx())
+        return [pos.x, pos.y, pos.z]
+    else:
+        return [0., 0., 0.]
 
 #custom aa features
 
@@ -406,17 +416,50 @@ def get_edge_dim(exclude_feature=None):
 
     return edge_dim
 
-def precompute_mol_features(mol):
-    CrippenContribs = Crippen._GetAtomContribs(mol)
-    TPSAContribs = rdMolDescriptors._CalcTPSAContribs(mol)
-    LabuteASAContribs = rdMolDescriptors._CalcLabuteASAContribs(mol)[0]
+def precompute_mol_features(mol,exclude_feature=None):
+    if exclude_feature is None:
+        exclude_feature = []
+    if not 'crippen_log_p_contrib' in exclude_feature:
+        CrippenContribs = Crippen._GetAtomContribs(mol)
+    else:
+        CrippenContribs = None
 
-    rdPartialCharges.ComputeGasteigerCharges(mol)
-    GasteigerCharges = [
-        atom.GetDoubleProp('_GasteigerCharge') for atom in mol.GetAtoms()
-    ]
+    if not 'crippen_molar_refractivity_contrib' in exclude_feature:
+        TPSAContribs = rdMolDescriptors._CalcTPSAContribs(mol)
+    else:
+        TPSAContribs = None
 
-    return CrippenContribs, TPSAContribs, LabuteASAContribs, GasteigerCharges
+    if not 'tpsa_contrib' in exclude_feature:
+        LabuteASAContribs = rdMolDescriptors._CalcLabuteASAContribs(mol)[0]
+    else:
+        LabuteASAContribs = None
+
+    if not 'gasteiger_charge' in exclude_feature:
+        rdPartialCharges.ComputeGasteigerCharges(mol)
+        GasteigerCharges = [
+            atom.GetDoubleProp('_GasteigerCharge') for atom in mol.GetAtoms()
+        ]
+    else:
+        GasteigerCharges = None
+
+    if not 'conformation' in exclude_feature:
+        #conformation
+        mol_h = Chem.AddHs(mol)
+
+        # 3. Generate 3D coordinates using ETKDGv3
+
+        ret = AllChem.EmbedMolecule(mol_h,randomSeed = 42, useRandomCoords=True)
+
+        if ret == 0:
+            if AllChem.MMFFHasAllMoleculeParams(mol_h):
+                AllChem.MMFFOptimizeMolecule(mol_h)
+
+            mol_no_h = Chem.RemoveHs(mol_h)
+            conf = mol_no_h.GetConformer()
+        else:
+            print('Failed conformation optimization')
+            conf = None
+    return CrippenContribs, TPSAContribs, LabuteASAContribs, GasteigerCharges, conf
 
 
 
