@@ -87,8 +87,13 @@ def process_one(i):
         # ---- hierarchical node features ----
         global_features = np.concatenate([charge_ohe, energy]).astype(np.float32)
 
+        mol_feats = precompute_mol_features(mol)
+
         # AA node features
-        x_atom = get_node_features(mol)
+        x_atom = get_node_features(
+            mol,
+            mol_feats=mol_feats,
+        )
         x_aa = get_aa_node_features(mol)
 
         # Global node
@@ -138,6 +143,12 @@ def process_one(i):
         total_atom = mol.GetNumAtoms()
         total_aa = x_aa.shape[0]
         global_idx = total_atom + total_aa
+
+        pos = np.concatenate([
+            get_atom_positions(mol, mol_feats=mol_feats),
+            get_aa_node_positions(mol, mol_feats=mol_feats),
+            np.zeros((1, 3), dtype=np.float32),
+        ], axis=0)
 
         residue_numbers = sorted({
             atom.GetMonomerInfo().GetResidueNumber() for atom in mol.GetAtoms()
@@ -208,6 +219,7 @@ def process_one(i):
 
         return {
             "x": x,
+            "pos": pos,
             "edge_index": edge_index,
             "edge_attr": edge_attr,
             "y": y
@@ -250,6 +262,7 @@ def process_batch_hierarchical(start, end, sequence, intensity, charge, energy):
 
                 data = Data(
                     x=torch.from_numpy(r["x"]).float(),
+                    pos=torch.from_numpy(r["pos"]).float(),
                     edge_index=edge_index,
                     edge_attr=edge_attr,
                     y=torch.from_numpy(r["y"]).float()

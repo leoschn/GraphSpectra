@@ -138,7 +138,6 @@ atom_features = [
     'crippen_molar_refractivity_contrib', #dim 1
     'degree', #dim 6
     'element', #dim 11
-    'gasteiger_charge', #dim 1
     'hybridization', #dim 5
     'is_aromatic',#dim 1
     'is_h_acceptor',#dim 1
@@ -150,7 +149,6 @@ atom_features = [
     'num_hs',#dim 4
     'num_valence',#dim 7
     'tpsa_contrib',#dim 1
-    'conformation' #dim 3 warning : largely increase computing time
 ]
 
 bond_features = [
@@ -180,14 +178,24 @@ def encode(x: Union[float, int, str]) -> List[float]:
         x = 0.0
     return [float(x)]
 
+def _normalize_exclude_features(exclude_feature):
+    if exclude_feature is None:
+        return set()
+    if isinstance(exclude_feature, str):
+        return {exclude_feature}
+    return set(exclude_feature)
+
+
 def bond_featurizer(bond: Chem.Bond,exclude_feature) -> np.ndarray:
-    new_bond_features = [i for i in bond_features if i != exclude_feature]
+    excluded_features = _normalize_exclude_features(exclude_feature)
+    new_bond_features = [i for i in bond_features if i not in excluded_features]
     return np.concatenate([
         globals()[bond_feature](bond) for bond_feature in new_bond_features
     ], axis=0)
 
 def atom_featurizer(atom, mol_feats, exclude_feature, concat=True):
-    new_atom_features = [i for i in atom_features if i != exclude_feature]
+    excluded_features = _normalize_exclude_features(exclude_feature)
+    new_atom_features = [i for i in atom_features if i not in excluded_features]
 
     features = []
 
@@ -197,8 +205,6 @@ def atom_featurizer(atom, mol_feats, exclude_feature, concat=True):
             'crippen_molar_refractivity_contrib',
             'tpsa_contrib',
             'labute_asa_contrib',
-            'gasteiger_charge',
-            'conformation'
         ]:
             features.append(globals()[atom_feature](atom, mol_feats)) #molecule level prop
         else:
@@ -209,7 +215,8 @@ def atom_featurizer(atom, mol_feats, exclude_feature, concat=True):
         return features
 
 def aa_featurizer(aa, exclude_feature):
-    new_aa_features = [i for i in aa_features if i != exclude_feature]
+    excluded_features = _normalize_exclude_features(exclude_feature)
+    new_aa_features = [i for i in aa_features if i not in excluded_features]
 
     features = []
 
@@ -348,27 +355,23 @@ def is_in_ring_size_n(atom: Chem.Atom) -> List[float]:
     )
 
 def crippen_log_p_contrib(atom, mol_feats):
-    crippen, _, _, _, _ = mol_feats
+    crippen, _, _, _ = mol_feats
     return encode(crippen[atom.GetIdx()][0])
 
 def crippen_molar_refractivity_contrib(atom, mol_feats):
-    crippen, _, _, _, _ = mol_feats
+    crippen, _, _, _ = mol_feats
     return encode(crippen[atom.GetIdx()][1])
 
 def tpsa_contrib(atom, mol_feats):
-    _, tpsa, _, _, _ = mol_feats
+    _, tpsa, _, _ = mol_feats
     return encode(tpsa[atom.GetIdx()])
 
 def labute_asa_contrib(atom, mol_feats):
-    _, _, labute, _, _ = mol_feats
+    _, _, labute, _ = mol_feats
     return encode(labute[atom.GetIdx()])
 
-def gasteiger_charge(atom, mol_feats):
-    _, _, _, gasteiger,_ = mol_feats
-    return encode(gasteiger[atom.GetIdx()])
-
 def conformation(atom, mol_feats):
-    _, _, _, _, conf = mol_feats
+    _, _, _, conf = mol_feats
     if conf :
         pos = conf.GetAtomPosition(atom.GetIdx())
         return [pos.x, pos.y, pos.z]
@@ -417,32 +420,26 @@ def get_edge_dim(exclude_feature=None):
     return edge_dim
 
 def precompute_mol_features(mol,exclude_feature=None):
-    if exclude_feature is None:
-        exclude_feature = []
-    if not 'crippen_log_p_contrib' in exclude_feature:
+    excluded_features = _normalize_exclude_features(exclude_feature)
+    CrippenContribs = None
+    TPSAContribs = None
+    LabuteASAContribs = None
+    conf = None
+
+    if (
+        'crippen_log_p_contrib' not in excluded_features
+        or 'crippen_molar_refractivity_contrib' not in excluded_features
+    ):
         CrippenContribs = Crippen._GetAtomContribs(mol)
-    else:
-        CrippenContribs = None
 
-    if not 'crippen_molar_refractivity_contrib' in exclude_feature:
+    if 'tpsa_contrib' not in excluded_features:
         TPSAContribs = rdMolDescriptors._CalcTPSAContribs(mol)
-    else:
-        TPSAContribs = None
 
-    if not 'tpsa_contrib' in exclude_feature:
+    if 'labute_asa_contrib' not in excluded_features:
         LabuteASAContribs = rdMolDescriptors._CalcLabuteASAContribs(mol)[0]
-    else:
-        LabuteASAContribs = None
 
-    if not 'gasteiger_charge' in exclude_feature:
-        rdPartialCharges.ComputeGasteigerCharges(mol)
-        GasteigerCharges = [
-            atom.GetDoubleProp('_GasteigerCharge') for atom in mol.GetAtoms()
-        ]
-    else:
-        GasteigerCharges = None
 
-    if not 'conformation' in exclude_feature:
+    if 'conformation' not in excluded_features:
         #conformation
         mol_h = Chem.AddHs(mol)
 
@@ -459,14 +456,15 @@ def precompute_mol_features(mol,exclude_feature=None):
         else:
             print('Failed conformation optimization')
             conf = None
-    return CrippenContribs, TPSAContribs, LabuteASAContribs, GasteigerCharges, conf
+
+    return CrippenContribs, TPSAContribs, LabuteASAContribs, conf
 
 
 
 def get_node_dim(exclude_feature=None):
     """Hacky way to get node dim from atom_featurizer"""
     mol = Chem.MolFromSmiles('CC')
-    mol_feats = precompute_mol_features(mol)
+    mol_feats = precompute_mol_features(mol, exclude_feature)
     node_dim = len(atom_featurizer(mol.GetAtoms()[0], mol_feats, exclude_feature))
     return node_dim
 
@@ -481,13 +479,19 @@ NODE_AA_DIM = get_node_aa_dim()
 
 
 
-def get_node_features(mol, exclude_feature=None):
-    num_atoms = mol.GetNumAtoms()
-    node_features = np.zeros((num_atoms, NODE_DIM), dtype=np.float32)
-    mol_feats = precompute_mol_features(mol)
-    for i, atom in enumerate(mol.GetAtoms()):
-        node_features[i] = atom_featurizer(atom, mol_feats, exclude_feature)
-    return node_features
+def get_node_features(mol, exclude_feature=None, mol_feats=None):
+    if mol_feats is None:
+        mol_feats = precompute_mol_features(mol, exclude_feature)
+
+    node_features = [
+        atom_featurizer(atom, mol_feats, exclude_feature)
+        for atom in mol.GetAtoms()
+    ]
+
+    if len(node_features) == 0:
+        return np.empty((0, get_node_dim(exclude_feature)), dtype=np.float32)
+
+    return np.asarray(node_features, dtype=np.float32)
 
 def get_edge_features(mol, exclude_feature=None):
     num_edge = mol.GetNumBonds()
@@ -586,7 +590,7 @@ def split_peptide_by_residue(mol):
 
     residue_mols = []
 
-    for residue_number, atom_indices in residue_atoms.items():
+    for residue_number, atom_indices in sorted(residue_atoms.items()):
         residue_mols.append((residue_number, _build_capped_residue_mol(mol, atom_indices)))
 
     return residue_mols
@@ -596,7 +600,82 @@ def get_aa_node_features(mol, exclude_feature=None):
     aa_list = split_peptide_by_residue(mol)
     num_aa = len(aa_list)
     node_features = np.zeros((num_aa, NODE_AA_DIM), dtype=np.float32)
-    mol_feats = precompute_mol_features(mol)
     for i, aa in enumerate(aa_list):
         node_features[i] = aa_featurizer(aa[1], exclude_feature)
     return node_features
+
+
+def _conformer_from_mol_features(mol_feats):
+    if mol_feats is None:
+        return None
+    _, _, _, conf = mol_feats
+    return conf
+
+
+def _conformer_position(conf, atom_idx):
+    pos = conf.GetAtomPosition(atom_idx)
+    return [pos.x, pos.y, pos.z]
+
+
+def get_atom_positions(mol, mol_feats=None):
+    if mol_feats is None:
+        mol_feats = precompute_mol_features(
+            mol,
+            exclude_feature=[
+                'crippen_log_p_contrib',
+                'crippen_molar_refractivity_contrib',
+                'tpsa_contrib',
+                'labute_asa_contrib',
+            ],
+        )
+
+    conf = _conformer_from_mol_features(mol_feats)
+    atom_positions = np.zeros((mol.GetNumAtoms(), 3), dtype=np.float32)
+
+    if conf is None:
+        return atom_positions
+
+    for atom in mol.GetAtoms():
+        atom_positions[atom.GetIdx()] = _conformer_position(conf, atom.GetIdx())
+
+    return atom_positions
+
+
+def _find_residue_carboxyl_carbon_idx(mol, residue_number):
+    for atom in mol.GetAtoms():
+        info = atom.GetMonomerInfo()
+        if info is None:
+            continue
+        if info.GetResidueNumber() != residue_number:
+            continue
+        if atom.GetSymbol() == "C" and info.GetName().strip() == "C":
+            return atom.GetIdx()
+
+    selected_atoms = {
+        atom.GetIdx()
+        for atom in mol.GetAtoms()
+        if _atom_residue_number(atom) == residue_number
+    }
+
+    for atom_idx in selected_atoms:
+        atom = mol.GetAtomWithIdx(atom_idx)
+        if atom.GetSymbol() == "C" and _has_carbonyl_oxygen(atom, selected_atoms):
+            return atom_idx
+
+    return None
+
+
+def get_aa_node_positions(mol, mol_feats=None):
+    aa_list = split_peptide_by_residue(mol)
+    aa_positions = np.zeros((len(aa_list), 3), dtype=np.float32)
+    conf = _conformer_from_mol_features(mol_feats)
+
+    if conf is None:
+        return aa_positions
+
+    for i, (residue_number, _) in enumerate(aa_list):
+        atom_idx = _find_residue_carboxyl_carbon_idx(mol, residue_number)
+        if atom_idx is not None:
+            aa_positions[i] = _conformer_position(conf, atom_idx)
+
+    return aa_positions

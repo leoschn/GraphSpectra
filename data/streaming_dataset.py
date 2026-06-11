@@ -61,10 +61,16 @@ def process_one(i):
         if mol is None:
             return None
 
+        mol_feats = precompute_mol_features(mol)
+
         # ---- node features ----
-        x_local = get_node_features(mol)
+        x_local = get_node_features(
+            mol,
+            mol_feats=mol_feats,
+        )
         x_global = get_global_feature(mol, charge_ohe, energy)
         x = np.concatenate([x_local, x_global], axis=1)
+        pos = get_atom_positions(mol, mol_feats=mol_feats)
 
         # ---- edges ----
         edges = [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()]
@@ -80,6 +86,7 @@ def process_one(i):
 
         return {
             "x": x,
+            "pos": pos,
             "edge_index": edge_index,
             "edge_attr": edge_attr,
             "y": y
@@ -122,6 +129,7 @@ def process_batch(start, end, sequence, intensity, charge, energy):
 
                 data = Data(
                     x=torch.from_numpy(r["x"]).float(),
+                    pos=torch.from_numpy(r["pos"]).float(),
                     edge_index=edge_index,
                     edge_attr=edge_attr,
                     y=torch.from_numpy(r["y"]).float()
