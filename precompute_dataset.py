@@ -24,6 +24,9 @@ from data.hierarchical_streaming_dataset import process_batch_hierarchical
 CHUNK_SIZE = 2048
 BATCH_SIZE = 2048
 N_WORKERS = min(cpu_count(), 8)
+print('CHUNK_SIZE:', CHUNK_SIZE)
+print('BATCH_SIZE:', BATCH_SIZE)
+print('N_WORKERS:', cpu_count())
 
 
 # =========================
@@ -41,7 +44,7 @@ def save_chunk(buffer, out_dir, chunk_id):
 # =========================
 # MAIN PREPROCESS FUNCTION
 # =========================
-def preprocess_to_chunks(data_source, out_dir):
+def preprocess_to_chunks(data_source, out_dir, hierarchical=False):
     os.makedirs(out_dir, exist_ok=True)
 
     # reset metadata
@@ -61,8 +64,15 @@ def preprocess_to_chunks(data_source, out_dir):
         for start in range(0, length, BATCH_SIZE):
             end = min(start + BATCH_SIZE, length)
             print(f"Processing {start}-{end}/{length}")
-
-            batch_data = process_batch_hierarchical(
+            if hierarchical:
+                batch_data = process_batch_hierarchical(
+                    start, end,
+                    sequence,
+                    intensity,
+                    precursor_charge_onehot,
+                    energy_list
+                )
+            else : batch_data = process_batch(
                 start, end,
                 sequence,
                 intensity,
@@ -88,17 +98,31 @@ def preprocess_to_chunks(data_source, out_dir):
 # RUN
 # =========================
 if __name__ == "__main__":
-    preprocess_to_chunks(data_source='dataset_dummy/val_hcd_reduce.hdf5', out_dir='dataset_dummy/test')
-    # preprocess_to_chunks(
-    #     data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/train_hcd.hdf5",
-    #     out_dir="dataset/processed_graphs_train_hcd_full"
-    # )
-    # preprocess_to_chunks(
-    #     data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/val_hcd.hdf5",
-    #     out_dir="dataset/processed_graphs_val_hcd_full"
-    # )
-    #
-    # preprocess_to_chunks(
-    #     data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd.hdf5",
-    #     out_dir="dataset/processed_graphs_holdout_hcd_full"
-    # )
+    # preprocess_to_chunks(data_source='dataset_dummy/val_hcd_reduce.hdf5', out_dir='dataset_dummy/test',hierarchical=True)
+    preprocess_to_chunks(
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/train_hcd_reduce.hdf5",
+        out_dir="dataset/processed_graphs_train_hcd_hierarchical_reduce",hierarchical=True
+    )
+    preprocess_to_chunks(
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/val_hcd_reduce.hdf5",
+        out_dir="dataset/processed_graphs_val_hcd_hierarchical_reduce",hierarchical=True
+    )
+
+    preprocess_to_chunks(
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd_reduce.hdf5",
+        out_dir="dataset/processed_graphs_holdout_hcd_hierarchical_reduce",hierarchical=True
+    )
+
+    preprocess_to_chunks(
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/train_hcd_reduce.hdf5",
+        out_dir="dataset/processed_graphs_train_hcd_baseline_reduce",hierarchical=False
+    )
+    preprocess_to_chunks(
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/val_hcd_reduce.hdf5",
+        out_dir="dataset/processed_graphs_val_hcd_baseline_reduce",hierarchical=False
+    )
+
+    preprocess_to_chunks(
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/holdout_hcd_reduce.hdf5",
+        out_dir="dataset/processed_graphs_holdout_hcd_baseline_reduce",hierarchical=False
+    )
