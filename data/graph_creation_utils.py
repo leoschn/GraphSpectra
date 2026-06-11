@@ -163,7 +163,8 @@ aa_features = ['log_p',#dim 1
                'mol_weight', #dim 1
                'aromaticity',#dim 2
                'isoelectric_point',#dim 1
-               'num_atom'#dim 1
+               'num_atom',#dim 1
+               'pka_values' #dim 3 + mask 3 => 6
 ]
 
 
@@ -396,6 +397,19 @@ def aromaticity(mol):
         x=has_aromatic_atom,
         allowable_set=[False, True]
     )
+
+def pad_and_mask(values, max_len=3, pad_value=0.0):
+    n = min(len(values), max_len)
+
+    padded = values[:max_len] + [pad_value] * (max_len - n)
+    mask = [1] * n + [0] * (max_len - n)
+
+    return padded, mask
+
+def pka_values(mol):
+    pkalist, _ = find_pKas(mol)
+    padded_list, mask = pad_and_mask(pkalist)
+    return padded_list + mask
 
 def isoelectric_point(mol):
     pkalist, charge = find_pKas(mol)
