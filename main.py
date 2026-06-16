@@ -6,7 +6,7 @@ import os
 import itertools
 import numpy as np
 from data.streaming_dataset import StreamingSpectraDataset
-from data.hierarchical_streaming_dataset import HierarchicalStreamingDataset
+from data.hierarchical_streaming_dataset import HierarchicalStreamingSpectraDataset
 from model.model import AttentiveFPGraphRegressor
 from model.losses import masked_spectral_distance
 from config import load_args
@@ -95,11 +95,9 @@ if __name__ == '__main__':
     # -----------------------
     # Data
     # -----------------------
-    train_dataset = HierarchicalSpectraDataset(root=args.root_train)
-    val_dataset = HierarchicalSpectraDataset(root=args.root_val)
-
-
-    test_dataset = StreamingSpectraDataset(root=args.root_test)
+    train_dataset = HierarchicalStreamingSpectraDataset(root=args.root_train)
+    val_dataset = HierarchicalStreamingSpectraDataset(root=args.root_val)
+    test_dataset = HierarchicalStreamingSpectraDataset(root=args.root_test)
 
     print('Data loaded.')
     print(
