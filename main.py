@@ -6,7 +6,7 @@ import os
 import itertools
 import numpy as np
 from data.streaming_dataset import StreamingSpectraDataset
-from data.hierarchical_dataset import HierarchicalSpectraDataset
+from data.hierarchical_streaming_dataset import HierarchicalSpectraDataset
 from model.model import AttentiveFPGraphRegressor
 from model.losses import masked_spectral_distance
 from config import load_args
