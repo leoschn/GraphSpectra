@@ -28,18 +28,18 @@ class BaselineGAT(nn.Module):
     def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3):
         super().__init__()
 
-    self.gnn = GAT(
-        in_channels=node_feat_dim,
-        hidden_channels=hidden_dim,
-        num_layers=num_layers,
-        out_channels=hidden_dim,
-        v2=True,
-        edge_dim=edge_feat_dim,
-    )
+        self.gnn = GAT(
+            in_channels=node_feat_dim,
+            hidden_channels=hidden_dim,
+            num_layers=num_layers,
+            out_channels=hidden_dim,
+            v2=True,
+            edge_dim=edge_feat_dim,
+        )
 
-    self.readout = aggr.SetTransformerAggregation(heads = 8)
+        self.readout = aggr.SetTransformerAggregation(heads = 8)
 
-    self.lin = nn.Linear(hidden_dim, out_dim)
+        self.lin = nn.Linear(hidden_dim, out_dim)
 
     def forward(self, data):
         x = self.gnn(data.x, data.edge_index, data.edge_attr, data.batch)
