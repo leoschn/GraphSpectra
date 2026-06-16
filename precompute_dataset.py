@@ -41,17 +41,38 @@ def save_chunk(buffer, out_dir, chunk_id):
         f.write(f"{path},{len(buffer)}\n")
 
 
-# =========================
-# MAIN PREPROCESS FUNCTION
-# =========================
 def preprocess_to_chunks(data_source, out_dir, hierarchical=False):
+
     os.makedirs(out_dir, exist_ok=True)
 
-    # reset metadata
-    open(os.path.join(out_dir, "meta.txt"), "w").close()
+    meta_path = os.path.join(out_dir, "meta.txt")
+
+    # ---------- RESUME ----------
+    if os.path.exists(meta_path) and os.path.getsize(meta_path) > 0:
+
+        with open(meta_path, "r") as f:
+            lines = f.readlines()
+
+        chunk_id = len(lines)
+
+        processed = sum(
+            int(line.strip().split(",")[1])
+            for line in lines
+        )
+
+        print(f"Resuming from chunk {chunk_id}")
+        print(f"Already processed {processed} graphs")
+
+    else:
+
+        open(meta_path, "w").close()
+
+        chunk_id = 0
+        processed = 0
+
+        print("Starting from scratch")
 
     buffer = []
-    chunk_id = 0
 
     with h5py.File(data_source, "r") as f:
         intensity = f["intensities_raw"]
