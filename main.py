@@ -6,6 +6,7 @@ import os
 import itertools
 import numpy as np
 from data.streaming_dataset import StreamingSpectraDataset
+from data.hierarchical_dataset import HierarchicalSpectraDataset
 from model.model import AttentiveFPGraphRegressor
 from model.losses import masked_spectral_distance
 from config import load_args
@@ -94,12 +95,8 @@ if __name__ == '__main__':
     # -----------------------
     # Data
     # -----------------------
-    train_dataset = StreamingSpectraDataset(root=args.root_train)
-    full_val_dataset = StreamingSpectraDataset(root=args.root_val)
-
-    indices = [i for i in range(50000)]
-
-    val_dataset = torch.utils.data.Subset(full_val_dataset, indices)
+    train_dataset = HierarchicalSpectraDataset(root=args.root_train)
+    val_dataset = HierarchicalSpectraDataset(root=args.root_val)
 
 
     test_dataset = StreamingSpectraDataset(root=args.root_test)
@@ -124,13 +121,6 @@ if __name__ == '__main__':
 
     val_loader = DataLoader(
         val_dataset,
-        batch_size=config.batch_size,
-        num_workers=6,
-        pin_memory=True
-    )
-
-    full_val_loader = DataLoader(
-        full_val_dataset,
         batch_size=config.batch_size,
         num_workers=6,
         pin_memory=True
