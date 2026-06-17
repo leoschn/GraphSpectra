@@ -37,7 +37,7 @@ class BaselineGAT(nn.Module):
             edge_dim=edge_feat_dim,
         )
 
-        self.readout = SetTransformerAggregation(heads = 8)
+        self.readout = SetTransformerAggregation(channels=hidden_dim, heads=8)
 
         self.lin = nn.Linear(hidden_dim, out_dim)
 
