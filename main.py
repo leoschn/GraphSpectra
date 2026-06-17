@@ -7,7 +7,7 @@ import itertools
 import numpy as np
 from data.streaming_dataset import StreamingSpectraDataset
 from data.hierarchical_streaming_dataset import HierarchicalStreamingSpectraDataset
-from model.model import AttentiveFPGraphRegressor
+from model.model import AttentiveFPGraphRegressor, BaselineGAT
 from model.losses import masked_spectral_distance
 from config import load_args
 
@@ -83,7 +83,6 @@ if __name__ == '__main__':
             "lr": args.lr,
             "max_steps": args.max_steps,
             "eval_every": args.eval_every,
-            "full_eval_every": args.full_eval_every,
             "hidden_dim": args.hidden_dim,
             "num_layers": args.num_layers,
             "num_timesteps": args.num_timesteps,
@@ -136,12 +135,20 @@ if __name__ == '__main__':
     # -----------------------
     # Model
     # -----------------------
-    model = AttentiveFPGraphRegressor(
+    # model = AttentiveFPGraphRegressor(
+    #     node_feat_dim=train_dataset[0].x.shape[1],
+    #     edge_feat_dim=train_dataset[0].edge_attr.shape[1],
+    #     hidden_dim=args.hidden_dim,
+    #     num_layers=args.num_layers,
+    #     num_timesteps=args.num_timesteps,
+    #     out_dim=174
+    # )
+
+    model = BaselineGAT(
         node_feat_dim=train_dataset[0].x.shape[1],
         edge_feat_dim=train_dataset[0].edge_attr.shape[1],
         hidden_dim=args.hidden_dim,
         num_layers=args.num_layers,
-        num_timesteps=args.num_timesteps,
         out_dim=174
     )
 
