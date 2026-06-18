@@ -7,7 +7,7 @@ import itertools
 import numpy as np
 from data.streaming_dataset import StreamingSpectraDataset
 from data.hierarchical_streaming_dataset import HierarchicalStreamingSpectraDataset
-from model.model import AttentiveFPGraphRegressor, BaselineGAT
+from model.model import AttentiveFPGraphRegressor, BaselineGAT, EGNN_predictor
 from model.losses import masked_spectral_distance
 from config import load_args
 
@@ -85,6 +85,7 @@ if __name__ == '__main__':
             "hidden_dim": args.hidden_dim,
             "num_layers": args.num_layers,
             "num_timesteps": args.num_timesteps,
+            "model_type": args.model_type,
         }
     )
 
@@ -142,15 +143,22 @@ if __name__ == '__main__':
     #     num_timesteps=args.num_timesteps,
     #     out_dim=174
     # )
-
-    model = BaselineGAT(
-        node_feat_dim=train_dataset[0].x.shape[1],
-        edge_feat_dim=train_dataset[0].edge_attr.shape[1],
-        hidden_dim=args.hidden_dim,
-        num_layers=args.num_layers,
-        out_dim=174
-    )
-
+    if config.model_type == "GAT":
+        model = BaselineGAT(
+            node_feat_dim=train_dataset[0].x.shape[1],
+            edge_feat_dim=train_dataset[0].edge_attr.shape[1],
+            hidden_dim=args.hidden_dim,
+            num_layers=args.num_layers,
+            out_dim=174
+        )
+    elif config.model_type == "EGNN":
+        model = EGNN_predictor(
+            node_feat_dim=train_dataset[0].x.shape[1],
+            edge_feat_dim=train_dataset[0].edge_attr.shape[1],
+            hidden_dim=args.hidden_dim,
+            num_layers=args.num_layers,
+            out_dim=174
+        )
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Device used:', device)
 
