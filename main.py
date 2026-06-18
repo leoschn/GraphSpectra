@@ -219,20 +219,6 @@ if __name__ == '__main__':
 
                 print(f"Best model saved at step {step}")
 
-        if step % config.full_eval_every == 0:
-
-            full_val_loss = evaluate(val_loader, split="val")
-
-            print(
-                f"\nStep {step:06d} | "
-                f"Train Loss: {train_loss:.4f} | "
-                f"Full val Loss: {full_val_loss:.4f}"
-            )
-
-            wandb.log({
-                "step": step,
-                "val_loss": full_val_loss
-            })
     # -----------------------
     # Test
     # -----------------------

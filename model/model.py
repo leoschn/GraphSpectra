@@ -32,7 +32,6 @@ class BaselineGAT(nn.Module):
             in_channels=node_feat_dim,
             hidden_channels=hidden_dim,
             num_layers=num_layers,
-            out_channels=hidden_dim,
             v2=True,
             edge_dim=edge_feat_dim,
         )
@@ -42,7 +41,7 @@ class BaselineGAT(nn.Module):
         self.lin = nn.Linear(hidden_dim, out_dim)
 
     def forward(self, data):
-        x = self.gnn(data.x, data.edge_index, data.edge_attr, data.batch)
+        x = self.gnn(x=data.x, edge_index=data.edge_index, edge_attr=data.edge_attr, batch=data.batch)
         x_read = self.readout(x)
         out = self.lin(x_read)
         return out
