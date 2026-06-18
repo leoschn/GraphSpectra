@@ -40,27 +40,26 @@ def train_step(data):
     return loss.item(), data.num_graphs
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def evaluate(loader, split="val"):
     model.eval()
-    with torch.no_grad():
-        total_loss = 0
+    total_loss = 0
 
-        pbar = tqdm(loader, desc=f"[{split.upper()}]")
+    pbar = tqdm(loader, desc=f"[{split.upper()}]")
 
-        for data in pbar:
-            data = data.to(device)
+    for data in pbar:
+        data = data.to(device)
 
-            out = model(data)
+        out = model(data)
 
-            loss = masked_spectral_distance(
-                out,
-                data.y.view(data.num_graphs, -1)
-            )
+        loss = masked_spectral_distance(
+            out,
+            data.y.view(data.num_graphs, -1)
+        )
 
-            total_loss += loss.item() * data.num_graphs
+        total_loss += loss.item() * data.num_graphs
 
-            pbar.set_postfix(loss=loss.item())
+        pbar.set_postfix(loss=loss.item())
 
     return total_loss / len(loader.dataset)
 
