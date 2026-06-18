@@ -4,8 +4,8 @@ import argparse
 def load_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--max_steps', type=int, default=10000)
-    parser.add_argument('--eval_every', type=int, default=300)
+    parser.add_argument('--max_steps', type=int, default=2500)
+    parser.add_argument('--eval_every', type=int, default=100)
     parser.add_argument('--eval_inter', type=int, default=1)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--batch_size', type=int, default=512)
