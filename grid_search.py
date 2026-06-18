@@ -13,11 +13,10 @@ configs = list(
         hidden_dims,
         lrs,
         num_layers,
-        seeds
     )
 )
 
-for i, (hidden_dim, lr, num_layers, seed) in enumerate(configs):
+for i, (hidden_dim, lr, num_layers) in enumerate(configs):
 
     print(
         f"Run {i+1}/{len(configs)} | "
@@ -32,6 +31,7 @@ for i, (hidden_dim, lr, num_layers, seed) in enumerate(configs):
         "--hidden_dim", str(hidden_dim),
         "--lr", str(lr),
         "--num_layers", str(num_layers),
+        "--save_path", f'saved_model/baselineGAT_step_{num_layers}_dim_{hidden_dim}_lr_{lr}'
     ]
 
     subprocess.run(cmd)
