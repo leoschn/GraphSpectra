@@ -82,7 +82,7 @@ def preprocess_to_chunks(data_source, out_dir, hierarchical=False):
 
         length = intensity.shape[0]
 
-        for start in range(0, length, BATCH_SIZE):
+        for start in range(processed, length, BATCH_SIZE):
             end = min(start + BATCH_SIZE, length)
             print(f"Processing {start}-{end}/{length}")
             if hierarchical:
