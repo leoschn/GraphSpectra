@@ -26,7 +26,7 @@ class AttentiveFPGraphRegressor(nn.Module):
         return out
 
 class BaselineGAT(nn.Module):
-    def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3):
+    def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3,dropout=0.):
         super().__init__()
 
         self.gnn = GAT(
@@ -35,6 +35,7 @@ class BaselineGAT(nn.Module):
             num_layers=num_layers,
             v2=True,
             edge_dim=edge_feat_dim,
+            dropout=dropout,
         )
 
         self.readout = SetTransformerAggregation(channels=hidden_dim, heads=8)

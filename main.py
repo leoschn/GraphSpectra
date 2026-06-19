@@ -1,4 +1,5 @@
 import torch
+from torch.nn.functional import dropout
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 import wandb
@@ -86,6 +87,7 @@ if __name__ == '__main__':
             "num_layers": args.num_layers,
             "num_timesteps": args.num_timesteps,
             "model_type": args.model_type,
+            "dropout":args.dropout
         }
     )
 
@@ -147,9 +149,10 @@ if __name__ == '__main__':
         model = BaselineGAT(
             node_feat_dim=train_dataset[0].x.shape[1],
             edge_feat_dim=train_dataset[0].edge_attr.shape[1],
-            hidden_dim=args.hidden_dim,
-            num_layers=args.num_layers,
-            out_dim=174
+            hidden_dim=config.hidden_dim,
+            num_layers=config.num_layers,
+            out_dim=174,
+            dropout=config.dropout
         )
     elif config.model_type == "EGNN":
         model = EGNN_predictor(

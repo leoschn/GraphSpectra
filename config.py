@@ -17,6 +17,7 @@ def load_args():
     parser.add_argument('--model_type', type=str, default='GAT')
     parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--num_timesteps', type=int, default=2)
+    parser.add_argument('--dropout', type=float, default=0.)
     args = parser.parse_args()
 
     return args

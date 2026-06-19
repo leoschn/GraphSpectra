@@ -1,28 +1,31 @@
 import itertools
 import subprocess
 
-hidden_dims = [64, 128, 256]
+hidden_dims = [128]
 
-lrs = [1e-5]
+lrs = [1e-4]
 
-num_layers = [3, 5, 7]
+num_layers = [5]
 
+dropouts = [0.,0.2,0.4,0.6]
 
 configs = list(
     itertools.product(
         hidden_dims,
         lrs,
         num_layers,
+        dropouts,
     )
 )
 
-for i, (hidden_dim, lr, num_layers) in enumerate(configs):
+for i, (hidden_dim, lr, num_layers, dropout) in enumerate(configs):
 
     print(
         f"Run {i+1}/{len(configs)} | "
         f"hd={hidden_dim} "
         f"lr={lr} "
         f"layers={num_layers} "
+        f"dropout={dropout} "
     )
 
     cmd = [
@@ -31,7 +34,8 @@ for i, (hidden_dim, lr, num_layers) in enumerate(configs):
         "--hidden_dim", str(hidden_dim),
         "--lr", str(lr),
         "--num_layers", str(num_layers),
-        "--save_path", f'saved_model/baselineGAT_step_{num_layers}_dim_{hidden_dim}_lr_{lr}'
+        "--save_path", f'saved_model/baselineGAT_dropout_{dropout}.pt',
+        "--dropout", str(dropout)
     ]
 
     subprocess.run(cmd)
