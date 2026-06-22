@@ -7,6 +7,8 @@ lrs = [1e-4]
 
 num_layers = [5]
 
+replicate = [0,1,2]
+
 dropouts = [0.,0.2,0.4,0.6]
 
 configs = list(
@@ -15,10 +17,11 @@ configs = list(
         lrs,
         num_layers,
         dropouts,
+        replicate,
     )
 )
 
-for i, (hidden_dim, lr, num_layers, dropout) in enumerate(configs):
+for i, (hidden_dim, lr, num_layers, dropout, rep) in enumerate(configs):
 
     print(
         f"Run {i+1}/{len(configs)} | "
@@ -34,7 +37,7 @@ for i, (hidden_dim, lr, num_layers, dropout) in enumerate(configs):
         "--hidden_dim", str(hidden_dim),
         "--lr", str(lr),
         "--num_layers", str(num_layers),
-        "--save_path", f'saved_model/baselineGAT_dropout_{dropout}.pt',
+        "--save_path", f'saved_model/baselineGAT_dropout_{dropout}_{rep}.pt',
         "--dropout", str(dropout)
     ]
 
