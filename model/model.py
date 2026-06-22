@@ -57,6 +57,7 @@ class EGNN_predictor(nn.Module):
             in_edge_nf=edge_feat_dim,
             hidden_nf=hidden_dim,
             n_layers=num_layers,
+            out_node_nf=hidden_dim,
         )
 
         self.readout = SetTransformerAggregation(channels=hidden_dim, heads=8)
