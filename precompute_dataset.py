@@ -141,15 +141,15 @@ if __name__ == "__main__":
     #     out_dir="dataset/processed_dataset/hierarchical_dataset/processed_graphs_holdout_hcd_hierarchical_dummy",hierarchical=True
     # )
 
-    print('Processing train baseline dataset')
-    preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/train_hcd_dummy.hdf5",
-        out_dir="dataset/processed_dataset/baseline_dataset/processed_graphs_train_hcd_baseline_dummy",hierarchical=False
-    )
+    # print('Processing train baseline dataset')
+    # preprocess_to_chunks(
+    #     data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/train_hcd_dummy.hdf5",
+    #     out_dir="dataset/processed_dataset/baseline_dataset/processed_graphs_train_hcd_baseline_dummy",hierarchical=False
+    # )
 
     print('Processing val baseline dataset')
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/raw_dataset/val_hcd_dummy.hdf5",
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/val_hcd_dummy.hdf5",
         out_dir="dataset/processed_dataset/baseline_dataset/processed_graphs_val_hcd_baseline_dummy",hierarchical=False
     )
 
