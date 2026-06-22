@@ -68,7 +68,6 @@ class EGNN_predictor(nn.Module):
 
     def forward(self, data):
         x, _ = self.gnn(h=data.x, x=data.pos, edges=data.edge_index, edge_attr=data.edge_attr)
-        x = self.gnn(x=data.x, edge_index=data.edge_index, edge_attr=data.edge_attr, batch=data.batch)
         x_read = self.readout(x,index=data.batch)
         out = self.lin(x_read)
         return out
