@@ -15,7 +15,7 @@ def load_args():
     parser.add_argument('--root_test', type=str, default='/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/processed_dataset/hierarchical_dataset/processed_graphs_holdout_hcd_hierarchical_dummy')
     parser.add_argument('--hidden_dim', type=int, default=128)
     parser.add_argument('--model_type', type=str, default='GAT')
-    parser.add_argument('--num_layers', type=int, default=3)
+    parser.add_argument('--num_layers', type=int, default=5)
     parser.add_argument('--num_timesteps', type=int, default=2)
     parser.add_argument('--dropout', type=float, default=0.)
     args = parser.parse_args()
