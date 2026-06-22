@@ -53,8 +53,8 @@ class EGNN_predictor(nn.Module):
 
     def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3):
         self.gnn = EGNN(
-            in_node_nf=train_dataset[0].x.shape[1],
-            in_edge_nf=train_dataset[0].edge_attr.shape[1],
+            in_node_nf=node_feat_dim,
+            in_edge_nf=edge_feat_dim,
             hidden_dim=args.hidden_dim,
             n_layers=args.num_layers,
         )
