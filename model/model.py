@@ -52,6 +52,8 @@ class BaselineGAT(nn.Module):
 class EGNN_predictor(nn.Module):
 
     def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3):
+        super().__init__()
+
         self.gnn = EGNN(
             in_node_nf=node_feat_dim,
             in_edge_nf=edge_feat_dim,
