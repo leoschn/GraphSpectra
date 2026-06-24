@@ -170,20 +170,13 @@ class BondBreakPredictor(nn.Module):
         # 2,2,2,2,2
         # ])
 
-        values, counts = torch.unique(x, return_counts=True)
+        values, counts_rep = torch.unique(edge_batch, return_counts=True)
 
-        full_frag_batch = values.repeat_interleave(counts * 6)
+        full_frag_batch = values.repeat_interleave(counts_rep * 6)
         # x6 for 3 (charge) x 2 (type) of frags
 
-
-
-        counts = torch.bincount(
-            full_frag_batch,
-            minlength=data.num_graphs
-        )
+        counts = torch.bincount(full_frag_batch)
         # [24,18,30]
-
-
 
         starts = torch.cumsum(
             counts,
@@ -197,7 +190,7 @@ class BondBreakPredictor(nn.Module):
                     full_frag_batch.size(0),
                     device=edge_batch.device
                 )
-                - starts[edge_batch]
+                - starts[full_frag_batch]
         )
 
         #tensor([
@@ -207,13 +200,13 @@ class BondBreakPredictor(nn.Module):
         # ])
 
         pred = pred_valid.new_zeros(
-            data.num_graphs,
+            max(edge_batch)+1,
             174
         )
         #full zero tensor
 
         pred[
-            edge_batch,
+            full_frag_batch,
             slot
         ] = pred_valid
         #copy pred int in relevant spot
