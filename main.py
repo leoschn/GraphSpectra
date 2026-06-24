@@ -169,7 +169,7 @@ if __name__ == '__main__':
             edge_feat_dim=train_dataset[0].edge_attr.shape[1],
             hidden_dim=args.hidden_dim,
             num_layers=args.num_layers,
-            out_dim=174f)
+            out_dim=174)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Device used:', device)
