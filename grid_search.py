@@ -7,9 +7,9 @@ lrs = [1e-4]
 
 num_layers = [5]
 
-replicate = [0,1,2]
+replicate = [0,1,2,3,4]
 
-dropouts = [0.,0.2,0.4,0.6]
+dropouts = [0]
 
 configs = list(
     itertools.product(
@@ -37,7 +37,7 @@ for i, (hidden_dim, lr, num_layers, dropout, rep) in enumerate(configs):
         "--hidden_dim", str(hidden_dim),
         "--lr", str(lr),
         "--num_layers", str(num_layers),
-        "--save_path", f'saved_model/baselineGAT_dropout_{dropout}_{rep}.pt',
+        "--save_path", f'saved_model/baselineGAT_long_train_{rep}.pt',
         "--dropout", str(dropout)
     ]
 
