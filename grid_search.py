@@ -38,7 +38,8 @@ for i, (hidden_dim, lr, num_layers, dropout, rep) in enumerate(configs):
         "--lr", str(lr),
         "--num_layers", str(num_layers),
         "--save_path", f'saved_model/baselineGAT_long_train_{rep}.pt',
-        "--dropout", str(dropout)
+        "--dropout", str(dropout),
+        "--max_steps", str(10000)
     ]
 
     subprocess.run(cmd)
