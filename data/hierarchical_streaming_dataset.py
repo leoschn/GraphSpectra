@@ -283,10 +283,11 @@ def process_batch_hierarchical(start, end, sequence, intensity, charge, energy):
 
 
 class HierarchicalStreamingSpectraDataset(Dataset):
-    def __init__(self, root):
+    def __init__(self, root, label_type):
         super().__init__(root)
 
         self.root = root
+        self.label_type = label_type
         meta_file = os.path.join(root, "meta.txt")
 
         self.chunk_files = []
@@ -332,4 +333,20 @@ class HierarchicalStreamingSpectraDataset(Dataset):
             self.cache = torch.load(self.chunk_files[chunk_idx],weights_only=False)
             self.current_chunk_idx = chunk_idx
 
-        return self.cache[local_idx]
+        data = self.cache[local_idx]
+
+        if self.label_type == 'local':
+            bond_dim = get_edge_dim()
+
+            src, dst = data.edge_index
+
+            # edge type = [atom_atom, atom_aa, aa_aa, aa_global]
+            is_aa = data.edge_attr[:, bond_dim + 2] == 1
+
+            # keep only one direction
+            aa_edge_mask = is_aa & (src < dst)
+
+            data.aa_edge_mask = aa_edge_mask
+
+
+        return data

@@ -73,9 +73,71 @@ class EGNN_predictor(nn.Module):
         return out
 
 
-class Hierachical_GAT(nn.Module):
-    pass
-    # forward : 1) get node embedding trougth GAT
-    # 2) perform edges prediction (only for aa-aa edges)
-    # 3) concatenate prediction (6 x nb edges aa-aa)
-    # add 0 to fill up to 174 dim
+class EdgeHead(nn.Module):
+
+    def __init__(self, emb_dim):
+
+        super().__init__()
+
+        self.mlp = nn.Sequential(
+
+            nn.Linear(2*emb_dim, 256),
+
+            nn.ReLU(),
+
+            nn.Dropout(0.2),
+
+            nn.Linear(256, 6)
+        )
+
+    def forward(self, h, edge_index):
+
+        src, dst = edge_index
+
+        h1 = h[src]
+
+        h2 = h[dst]
+
+        edge_feat = torch.cat([
+            h1,
+            h2,
+        ], dim=1)
+
+        return self.mlp(edge_feat).squeeze(-1)
+
+class BondBreakPredictor(nn.Module):
+
+    def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174, num_layers=3, dropout=0.):
+        super().__init__()
+
+        self.gnn = GAT(
+            in_channels=node_feat_dim,
+            hidden_channels=hidden_dim,
+            num_layers=num_layers,
+            v2=True,
+            edge_dim=edge_feat_dim,
+            dropout=dropout,
+        )
+
+
+        self.edge_head = EdgeHead(hidden_dim)
+
+    def forward(self, data):
+
+        h = self.gnn(
+            data.x,
+            data.edge_index,
+            data.edge_attr
+        )
+
+        aa_edges = data.edge_index[
+            :,
+            data.aa_edge_mask
+        ]
+
+        pred = self.edge_head(
+            h,
+            aa_edges
+        )
+
+        return pred
