@@ -92,6 +92,8 @@ class EdgeHead(nn.Module):
 
     def forward(self, h, edge_index):
 
+
+
         src, dst = edge_index
 
         h1 = h[src]
@@ -121,6 +123,94 @@ class BondBreakPredictor(nn.Module):
 
 
         self.edge_head = EdgeHead(hidden_dim)
+
+    def forward(self, data):
+        h = self.gnn(
+            data.x,
+            data.edge_index,
+            data.edge_attr
+        )
+
+        bond_dim = get_edge_dim()
+
+        src_all, dst_all = data.edge_index
+
+        is_aa = (
+                data.edge_attr[:, bond_dim + 2]
+                == 1
+        )
+
+        # only 1 edge per pair (from 2 => undirected)
+        aa_mask = is_aa & (src_all < dst_all)
+
+        #aa-aa edges scr/dst
+        src = src_all[aa_mask]
+        dst = dst_all[aa_mask]
+
+        h1 = h[src]
+        h2 = h[dst]
+
+        edge_feat = torch.cat(
+            [h1, h2],
+            dim=1
+        )
+
+        #apply prediction head to each dim (each aa pairs)
+        pred_valid = self.edge_head(
+            edge_feat
+        ).squeeze(-1)
+
+        #pex graph0 : 4 AA bonds graph1 : 3 AA bonds graph2 : 5 AA bonds => PyG batch fuse it in a single graph
+        # pred size 12
+
+        edge_batch = data.batch[src]
+        # tensor([
+        # 0,0,0,0,
+        # 1,1,1,
+        # 2,2,2,2,2
+        # ])
+
+        counts = torch.bincount(
+            edge_batch,
+            minlength=data.num_graphs
+        )
+        # [4,3,5]
+
+
+        starts = torch.cumsum(
+            counts,
+            dim=0
+        ) - counts
+        # [0,4,7]
+
+
+        slot = (
+                torch.arange(
+                    edge_batch.size(0),
+                    device=edge_batch.device
+                )
+                - starts[edge_batch]
+        )
+
+        #tensor([
+        # 0,1,2,3,
+        # 0,1,2,
+        # 0,1,2,3,4
+        # ])
+
+        pred = pred_valid.new_zeros(
+            data.num_graphs,
+            29
+        )
+        #full zero tensor
+
+        pred[
+            edge_batch,
+            slot
+        ] = pred_valid
+        #copy pred int in relevant spot
+
+        return pred
 
     def forward(self, data):
 
