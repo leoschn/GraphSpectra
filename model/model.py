@@ -215,30 +215,3 @@ class BondBreakPredictor(nn.Module):
 
         return pred
 
-    def forward(self, data):
-
-        h = self.gnn(
-            data.x,
-            data.edge_index,
-            data.edge_attr
-        )
-
-        is_aa = (
-                data.edge_attr[:, self.bond_dim + 2]
-                == 1
-        )
-
-        # only 1 edge per pair (from 2 => undirected)
-        aa_mask = is_aa & (src_all < dst_all)
-
-        aa_edges = data.edge_index[
-            :,
-            aa_mask
-        ]
-
-        pred = self.edge_head(
-            h,
-            aa_edges
-        )
-
-        return pred
