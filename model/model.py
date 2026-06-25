@@ -160,7 +160,7 @@ class BondBreakPredictor(nn.Module):
 
         #apply prediction head to each dim (each aa pairs)
         pred_valid = self.edge_head(
-            edge_feat
+            edge_feat,(src, dst)
         ).squeeze(-1)
 
         #pex graph0 : 4 AA bonds graph1 : 3 AA bonds graph2 : 5 AA bonds => PyG batch fuse it in a single graph
