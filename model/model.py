@@ -221,9 +221,17 @@ class BondBreakPredictor(nn.Module):
             data.edge_attr
         )
 
+        is_aa = (
+                data.edge_attr[:, bond_dim + 2]
+                == 1
+        )
+
+        # only 1 edge per pair (from 2 => undirected)
+        aa_mask = is_aa & (src_all < dst_all)
+
         aa_edges = data.edge_index[
             :,
-            data.aa_edge_mask
+            aa_mask
         ]
 
         pred = self.edge_head(
