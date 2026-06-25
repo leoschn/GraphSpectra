@@ -40,7 +40,8 @@ for i, (hidden_dim, lr, num_layers, dropout, rep) in enumerate(configs):
         "--save_path", f'saved_model/EGNN_lr_{lr}_{rep}.pt',
         "--dropout", str(dropout),
         "--max_steps", str(10000),
-        "--model_type", "EGNN"
+        "--model_type", "EGNN",
+        "--scheduler", "plateau",
     ]
 
     subprocess.run(cmd)
