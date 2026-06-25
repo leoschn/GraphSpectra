@@ -2,6 +2,7 @@ from torch_geometric.nn import AttentiveFP, global_mean_pool, GAT
 from torch_geometric.nn.aggr import SetTransformerAggregation
 import torch.nn as nn
 from egnn_clean.egnn_clean import EGNN
+from data.graph_creation_utils import get_edge_dim
 
 class AttentiveFPGraphRegressor(nn.Module):
     def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3, num_timesteps=2):
@@ -121,6 +122,7 @@ class BondBreakPredictor(nn.Module):
             dropout=dropout,
         )
 
+        self.bond_dim = get_edge_dim()
 
         self.edge_head = EdgeHead(hidden_dim)
 
@@ -131,7 +133,7 @@ class BondBreakPredictor(nn.Module):
             data.edge_attr
         )
 
-        bond_dim = get_edge_dim()
+
 
         src_all, dst_all = data.edge_index
 
