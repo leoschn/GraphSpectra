@@ -1,6 +1,7 @@
 from torch_geometric.nn import AttentiveFP, global_mean_pool, GAT
 from torch_geometric.nn.aggr import SetTransformerAggregation
 import torch.nn as nn
+import torch
 from egnn_clean.egnn_clean import EGNN
 from data.graph_creation_utils import get_edge_dim
 
