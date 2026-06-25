@@ -92,22 +92,9 @@ class EdgeHead(nn.Module):
             nn.Linear(256, 6)
         )
 
-    def forward(self, h, edge_index):
+    def forward(self, h):
 
-
-
-        src, dst = edge_index
-
-        h1 = h[src]
-
-        h2 = h[dst]
-
-        edge_feat = torch.cat([
-            h1,
-            h2,
-        ], dim=1)
-
-        return self.mlp(edge_feat).squeeze(-1)
+        return self.mlp(h).squeeze(-1)
 
 class BondBreakPredictor(nn.Module):
 
@@ -159,9 +146,7 @@ class BondBreakPredictor(nn.Module):
         )
 
         #apply prediction head to each dim (each aa pairs)
-        pred_valid = self.edge_head(
-            edge_feat,(src, dst)
-        ).squeeze(-1)
+        pred_valid = self.edge_head(edge_feat).squeeze(-1)
 
         #pex graph0 : 4 AA bonds graph1 : 3 AA bonds graph2 : 5 AA bonds => PyG batch fuse it in a single graph
         # pred size 12
