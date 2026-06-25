@@ -87,7 +87,8 @@ if __name__ == '__main__':
             "num_layers": args.num_layers,
             "num_timesteps": args.num_timesteps,
             "model_type": args.model_type,
-            "dropout":args.dropout
+            "dropout":args.dropout,
+            "dataset_train": args.root_train,
         }
     )
 
