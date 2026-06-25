@@ -138,7 +138,7 @@ class BondBreakPredictor(nn.Module):
         src_all, dst_all = data.edge_index
 
         is_aa = (
-                data.edge_attr[:, bond_dim + 2]
+                data.edge_attr[:, self.bond_dim + 2]
                 == 1
         )
 
@@ -224,7 +224,7 @@ class BondBreakPredictor(nn.Module):
         )
 
         is_aa = (
-                data.edge_attr[:, bond_dim + 2]
+                data.edge_attr[:, self.bond_dim + 2]
                 == 1
         )
 
