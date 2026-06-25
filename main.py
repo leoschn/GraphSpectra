@@ -89,6 +89,7 @@ if __name__ == '__main__':
             "model_type": args.model_type,
             "dropout":args.dropout,
             "dataset_train": args.root_train,
+            "scheduler":args.scheduler,
         }
     )
 
@@ -181,6 +182,19 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
+    if config.scheduler == 'plateau':
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode="min",
+            factor=0.5,
+            patience=3,  # validation evaluations, not training steps
+            min_lr=1e-6,
+            threshold=1e-4,
+            threshold_mode="rel"
+        )
+    current_lr = config.lr
+
+
     print('Optimizer loaded.')
 
     # save path dir creation
@@ -218,15 +232,22 @@ if __name__ == '__main__':
 
             val_loss = evaluate(val_loader, split="val")
 
+            if config.scheduler == 'plateau':
+                scheduler.step(val_loss)
+
+                current_lr = optimizer.param_groups[0]["lr"]
+
             print(
                 f"\nStep {step:06d} | "
                 f"Train Loss: {train_loss:.4f} | "
                 f"Val Loss: {val_loss:.4f}"
+                f"LR: {current_lr:.2e}"
             )
 
             wandb.log({
                 "step": step,
-                "val_loss": val_loss
+                "val_loss": val_loss,
+                "lr": current_lr
             })
 
             # -----------------------
