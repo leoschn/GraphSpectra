@@ -137,13 +137,12 @@ atom_features = [
     'crippen_log_p_contrib', #dim 1
     'crippen_molar_refractivity_contrib', #dim 1
     'degree', #dim 6
-    'element', #dim 11
+    'element', #dim 6
     'hybridization', #dim 5
-    'is_aromatic',#dim 1
     'is_h_acceptor',#dim 1
     'is_h_donor',#dim 1
     'is_hetero',#dim 1
-    'is_in_ring_size_n',#dim 8
+    'is_in_ring_size_n',#dim 3
     'labute_asa_contrib',#dim 1
     'mass',#dim 1
     'num_hs',#dim 4
@@ -259,8 +258,7 @@ def is_rotatable(bond: Chem.Bond) -> List[float]:
 def element(atom: Chem.Atom) -> List[float]:
     x = atom.GetSymbol()
     allowable_set = [
-        'B', 'C', 'N', 'O', 'Si',
-        'P', 'S', 'Cl', 'Br', 'I','other'
+        'C', 'N', 'O','P', 'S','other'
     ]
     symbol = atom.GetSymbol()
     if x not in allowable_set:
@@ -348,11 +346,11 @@ def is_h_acceptor(atom: Chem.Atom) -> List[float]:
     )
 
 def is_in_ring_size_n(atom: Chem.Atom) -> List[float]:
-    for ring_size in [9, 8, 7, 6, 5, 4, 3, 0]:
+    for ring_size in [6, 5, 0]:
         if atom.IsInRingSize(ring_size): break
     return onehot_encode(
         x=max(0,ring_size),
-        allowable_set=[0, 3, 4, 5, 6, 7, 8, 9,]
+        allowable_set=[0, 5, 6,]
     )
 
 def crippen_log_p_contrib(atom, mol_feats):
@@ -485,6 +483,7 @@ def get_node_dim(exclude_feature=None):
 def get_node_aa_dim(exclude_feature=None):
     mol = Chem.MolFromFASTA('A')
     node_dim = len(aa_featurizer(mol, exclude_feature))
+    print(aa_featurizer(mol, exclude_feature))
     return node_dim
 
 NODE_DIM = get_node_dim()

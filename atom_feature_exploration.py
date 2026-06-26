@@ -19,21 +19,16 @@ ONE_HOT_FEATURE_LABELS: Dict[str, List[str]] = {
     "cip_code": ["R", "S"],
     "degree": ["0", "1", "2", "3", "4", "5+"],
     "element": [
-        "B",
         "C",
         "N",
         "O",
-        "Si",
         "P",
         "S",
-        "Cl",
-        "Br",
-        "I",
         "other",
     ],
-    "hybridization": ["S", "SP", "SP2", "SP3", "SP3D", "SP3D2"],
-    "is_in_ring_size_n": ["0", "3", "4", "5", "6", "7", "8", "9+"],
-    "num_hs": ["0", "1", "2", "3", "4+"],
+    "hybridization": ["SP", "SP2", "SP3", "SP3D", "other"],
+    "is_in_ring_size_n": ["0", "5", "6"],
+    "num_hs": ["0", "1", "2", "3+"],
     "num_valence": ["0", "1", "2", "3", "4", "5", "6+"],
 }
 
@@ -673,6 +668,8 @@ def main() -> None:
     input_df = pd.read_csv(args.csv)
     sequences = input_df[args.sequence_column].dropna().astype(str).head(args.limit).tolist()
     feature_df = compute_atom_feature_dataframe(sequences, skip_invalid=args.skip_invalid)
+    print(feature_df)
+    feature_df.to_csv('temp.csv', index=False)
     output_path = write_feature_exploration_report(feature_df, args.output, bins=args.bins)
     print(f"Wrote {output_path}")
     print(f"Wrote {output_path.with_suffix('.scalar_summary.csv')}")
