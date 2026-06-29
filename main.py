@@ -8,7 +8,7 @@ import itertools
 import numpy as np
 from data.streaming_dataset import StreamingSpectraDataset
 from data.hierarchical_streaming_dataset import HierarchicalStreamingSpectraDataset
-from model.model import AttentiveFPGraphRegressor, BaselineGAT, EGNN_predictor, BondBreakPredictor
+from model.model import BaselineGAT, EGNN_predictor, BondBreakPredictor
 from model.losses import masked_spectral_distance
 from config import load_args
 import pandas as pd
