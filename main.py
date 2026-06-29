@@ -296,8 +296,8 @@ if __name__ == '__main__':
     print("Test Median:", test_results["median"])
 
     wandb.log({
-        "test_loss": test_loss,
-        "test_median": test_median,
+        "test_loss": test_results["mean"],
+        "test_median": test_results["median"],
     })
 
     wandb.finish()

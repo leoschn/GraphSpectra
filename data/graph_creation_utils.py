@@ -415,9 +415,6 @@ def isoelectric_point(mol):
         x=pI(pkalist, charge)
     )
 
-def isoelectic_point(mol):
-    return isoelectric_point(mol)
-
 def num_atom(mol):
     return encode(
         x=mol.GetNumAtoms()
