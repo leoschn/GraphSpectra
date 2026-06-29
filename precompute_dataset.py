@@ -23,7 +23,7 @@ from data.hierarchical_streaming_dataset import process_batch_hierarchical
 # =========================
 CHUNK_SIZE = 2048
 BATCH_SIZE = 2048
-N_WORKERS = min(cpu_count(), 8)
+N_WORKERS = int(os.environ.get("SLURM_CPUS_PER_TASK", cpu_count()))
 print('CHUNK_SIZE:', CHUNK_SIZE)
 print('BATCH_SIZE:', BATCH_SIZE)
 print('N_WORKERS:', cpu_count())

@@ -107,7 +107,7 @@ def process_batch(start, end, sequence, intensity, charge, energy):
         charge_batch = charge[start:end]
         energy_batch = energy[start:end]
 
-        n_workers = min(cpu_count(), 8)
+        n_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", cpu_count()))
 
         with Pool(
             processes=n_workers,
