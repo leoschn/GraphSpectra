@@ -52,4 +52,4 @@ def masked_spectral_distance(
     arccos = torch.arccos(product)
     batch_losses = 2 * arccos / np.pi
 
-    return batch_losses.mean()
+    return batch_losses

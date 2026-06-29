@@ -11,7 +11,7 @@ from data.hierarchical_streaming_dataset import HierarchicalStreamingSpectraData
 from model.model import AttentiveFPGraphRegressor, BaselineGAT, EGNN_predictor, BondBreakPredictor
 from model.losses import masked_spectral_distance
 from config import load_args
-
+import pandas as pd
 
 def infinite_loader(loader):
     """Creates an infinite dataloader iterator."""
@@ -35,6 +35,8 @@ def train_step(data):
         data.y.view(data.num_graphs, -1)
     )
 
+    loss = loss.mean()
+
     loss.backward()
     optimizer.step()
 
@@ -42,9 +44,14 @@ def train_step(data):
 
 
 @torch.inference_mode()
-def evaluate(loader, split="val"):
+def evaluate(loader, split="val", save_predictions=False):
+
     model.eval()
-    total_loss = 0
+
+    sample_losses = []
+
+    all_preds = []
+    all_targets = []
 
     pbar = tqdm(loader, desc=f"[{split.upper()}]")
 
@@ -53,16 +60,34 @@ def evaluate(loader, split="val"):
 
         out = model(data)
 
-        loss = masked_spectral_distance(
+        # -------- batch loss (for logging) --------
+        batch_loss = masked_spectral_distance(
             out,
             data.y.view(data.num_graphs, -1)
         )
+        mean_loss = batch_loss.mean()
 
-        total_loss += loss.item() * data.num_graphs
+        pbar.set_postfix(loss=mean_loss.item())
 
-        pbar.set_postfix(loss=loss.item())
+        sample_losses.extend(batch_loss.cpu().numpy())
 
-    return total_loss / len(loader.dataset)
+        if save_predictions:
+            all_preds.append(out.cpu())
+            all_targets.append(data.y.view(data.num_graphs, -1).cpu())
+
+    mean_loss = np.mean(sample_losses)
+    median_loss = np.median(sample_losses)
+
+    results = {
+        "mean": mean_loss,
+        "median": median_loss,
+    }
+
+    if save_predictions:
+        results["predictions"] = torch.cat(all_preds, dim=0)
+        results["targets"] = torch.cat(all_targets, dim=0)
+
+    return results
 
 
 if __name__ == '__main__':
@@ -136,17 +161,6 @@ if __name__ == '__main__':
 
     train_iter = infinite_loader(train_loader)
 
-    # -----------------------
-    # Model
-    # -----------------------
-    # model = AttentiveFPGraphRegressor(
-    #     node_feat_dim=train_dataset[0].x.shape[1],
-    #     edge_feat_dim=train_dataset[0].edge_attr.shape[1],
-    #     hidden_dim=args.hidden_dim,
-    #     num_layers=args.num_layers,
-    #     num_timesteps=args.num_timesteps,
-    #     out_dim=174
-    # )
     if config.model_type == "GAT":
         model = BaselineGAT(
             node_feat_dim=train_dataset[0].x.shape[1],
@@ -230,7 +244,10 @@ if __name__ == '__main__':
         # -----------------------
         if step % config.eval_every == 0:
 
-            val_loss = evaluate(val_loader, split="val")
+            val_results = evaluate(val_loader, split="val")
+
+            val_loss = val_results["mean"]
+            val_median = val_results["median"]
 
             if config.scheduler == 'plateau':
                 scheduler.step(val_loss)
@@ -238,16 +255,18 @@ if __name__ == '__main__':
                 current_lr = optimizer.param_groups[0]["lr"]
 
             print(
-                f"\nStep {step:06d} | "
-                f"Train Loss: {train_loss:.4f} | "
-                f"Val Loss: {val_loss:.4f}"
-                f"LR: {current_lr:.2e}"
+                f"\nStep {step:06d}"
+                f" | Train: {train_loss:.4f}"
+                f" | Val Mean: {val_loss:.4f}"
+                f" | Val Median: {val_median:.4f}"
+                f" | LR: {current_lr:.2e}"
             )
 
             wandb.log({
                 "step": step,
-                "val_loss": val_loss,
-                "lr": current_lr
+                "val_mean": val_loss,
+                "val_median": val_median,
+                "lr": current_lr,
             })
 
             # -----------------------
@@ -267,12 +286,27 @@ if __name__ == '__main__':
 
     model.load_state_dict(torch.load(args.save_path))
 
-    test_loss = evaluate(test_loader, split="test")
+    test_results = evaluate(
+        test_loader,
+        split="test",
+        save_predictions=True
+    )
 
-    print("Test Loss:", test_loss)
+    print("Test Mean:", test_results["mean"])
+    print("Test Median:", test_results["median"])
 
     wandb.log({
-        "test_loss": test_loss
+        "test_loss": test_loss,
+        "test_median": test_median,
     })
 
     wandb.finish()
+
+    pred = test_results["predictions"].numpy()
+    target = test_results["targets"].numpy()
+
+    df_pred = pd.DataFrame(pred)
+    df_true = pd.DataFrame(target)
+
+    df_pred.to_csv(os.path.splitext(args.save_path)[0]+"predictions.csv", index=False)
+    df_true.to_csv(os.path.splitext(args.save_path)[0]+"predictions.csv", index=False)
