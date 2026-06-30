@@ -305,7 +305,10 @@ if __name__ == '__main__':
     pred = test_results["predictions"].numpy()
     target = test_results["targets"].numpy()
 
-    df_pred = pd.DataFrame(pred,columns=["Predicted"])
-    df_true = pd.DataFrame(target,columns=["True"])
-    df_full = pd.concat([df_pred, df_true], axis=1)
+
+    df_pred = pd.Series(pred)
+    df_true = pd.Series(target)
+    df_full = pd.DataFrame()
+    df_full['Pred'] = df_pred
+    df_full['True'] = df_true
     df_full.to_csv(os.path.splitext(args.save_path)[0]+"_predictions.csv", index=False)
