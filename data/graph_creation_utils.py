@@ -480,7 +480,6 @@ def get_node_dim(exclude_feature=None):
 def get_node_aa_dim(exclude_feature=None):
     mol = Chem.MolFromFASTA('A')
     node_dim = len(aa_featurizer(mol, exclude_feature))
-    print(aa_featurizer(mol, exclude_feature))
     return node_dim
 
 NODE_DIM = get_node_dim()
