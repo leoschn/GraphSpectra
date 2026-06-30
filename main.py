@@ -306,8 +306,8 @@ if __name__ == '__main__':
     target = test_results["targets"].numpy()
 
 
-    df_pred = pd.Series(pred)
-    df_true = pd.Series(target)
+    df_pred = pd.Series(pred.tolist())
+    df_true = pd.Series(target.tolist())
     df_full = pd.DataFrame()
     df_full['Pred'] = df_pred
     df_full['True'] = df_true
