@@ -21,7 +21,7 @@ class BaselineGAT(nn.Module):
 
         self.readout = SetTransformerAggregation(channels=hidden_dim, heads=8)
 
-        self.lin = nn.Linear(hidden_dim, out_dim)
+        self.lin = nn.Sequential([nn.Linear(hidden_dim, out_dim),nn.LeakyReLU()])
 
     def forward(self, data):
         x = self.gnn(x=data.x, edge_index=data.edge_index, edge_attr=data.edge_attr, batch=data.batch)
@@ -45,7 +45,7 @@ class EGNN_predictor(nn.Module):
 
         self.readout = SetTransformerAggregation(channels=hidden_dim, heads=8)
 
-        self.lin = nn.Linear(hidden_dim, out_dim)
+        self.lin = nn.Sequential([nn.Linear(hidden_dim, out_dim),nn.LeakyReLU()])
 
     def forward(self, data):
         x, _ = self.gnn(h=data.x, x=data.pos, edges=data.edge_index, edge_attr=data.edge_attr)
@@ -64,11 +64,13 @@ class EdgeHead(nn.Module):
 
             nn.Linear(2*emb_dim, 256),
 
-            nn.ReLU(),
+            nn.LeakyReLU(),
 
             nn.Dropout(0.2),
 
-            nn.Linear(256, 6)
+            nn.Linear(256, 6),
+
+            nn.LeakyReLU()
         )
 
     def forward(self, h):
