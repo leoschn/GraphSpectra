@@ -102,7 +102,7 @@ if __name__ == '__main__':
     os.environ["WANDB_DIR"] = os.path.abspath("./wandb_run")
 
     wandb.init(
-        project="attentivefp-spectra",
+        project="graph-spectra",
         config={
             "batch_size": args.batch_size,
             "lr": args.lr,

@@ -1,11 +1,11 @@
 import itertools
 import subprocess
 
-hidden_dims = [128]
+hidden_dims = [64, 128, 256]
 
 lrs = [1e-4,1e-5,1e-6]
 
-num_layers = [5]
+num_layers = [3, 5, 7]
 
 replicate = [0,1,2]
 
@@ -37,11 +37,10 @@ for i, (hidden_dim, lr, num_layers, dropout, rep) in enumerate(configs):
         "--hidden_dim", str(hidden_dim),
         "--lr", str(lr),
         "--num_layers", str(num_layers),
-        "--save_path", f'saved_model/EGNN_lr_{lr}_{rep}.pt',
+        "--save_path", f'saved_model_2/GAT_layer_{num_layers}_dim_{hidden_dim}_lr_{lr}_{rep}.pt',
         "--dropout", str(dropout),
-        "--max_steps", str(10000),
-        "--model_type", "EGNN",
-        "--scheduler", "plateau",
+        "--max_steps", str(2500),
+        "--model_type", "GAT",
     ]
 
     subprocess.run(cmd)
