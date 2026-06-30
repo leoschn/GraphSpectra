@@ -41,7 +41,7 @@ def save_chunk(buffer, out_dir, chunk_id):
         f.write(f"{path},{len(buffer)}\n")
 
 
-def preprocess_to_chunks(data_source, out_dir, hierarchical=False):
+def preprocess_to_chunks(data_source, out_dir, hierarchical=False, with_position=True):
 
     os.makedirs(out_dir, exist_ok=True)
 
@@ -91,14 +91,16 @@ def preprocess_to_chunks(data_source, out_dir, hierarchical=False):
                     sequence,
                     intensity,
                     precursor_charge_onehot,
-                    energy_list
+                    energy_list,
+                    with_position
                 )
             else : batch_data = process_batch(
                 start, end,
                 sequence,
                 intensity,
                 precursor_charge_onehot,
-                energy_list
+                energy_list,
+                with_position
             )
 
             for data in batch_data:
@@ -121,36 +123,36 @@ def preprocess_to_chunks(data_source, out_dir, hierarchical=False):
 if __name__ == "__main__":
     print('Processing val hierachical dataset')
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/val_hcd_dummy.hdf5",
-        out_dir="dataset/processed_dataset/hierarchical_dataset/val_hierarchical_dummy_opti",hierarchical=True
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/val_hcd.hdf5",
+        out_dir="dataset/processed_dataset/hierarchical_dataset/val_hierarchical_no_pos_opti",hierarchical=True
     )
 
     print('Processing train hierachical dataset')
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/train_hcd_dummy.hdf5",
-        out_dir="dataset/processed_dataset/hierarchical_dataset/train_hierarchical_dummy_opti",hierarchical=True
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/train_hcd.hdf5",
+        out_dir="dataset/processed_dataset/hierarchical_dataset/train_hierarchical_no_pos_opti",hierarchical=True,with_position=False
     )
 
     print('Processing test hierachical dataset')
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/holdout_hcd_dummy.hdf5",
-        out_dir="dataset/processed_dataset/hierarchical_dataset/test_hierarchical_dummy_opti",hierarchical=True
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/holdout_hcd.hdf5",
+        out_dir="dataset/processed_dataset/hierarchical_dataset/test_hierarchical_no_pos_opti",hierarchical=True,with_position=False
     )
 
     print('Processing train baseline dataset')
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/train_hcd_dummy.hdf5",
-        out_dir="dataset/processed_dataset/baseline_dataset/train_baseline_dummy_opti",hierarchical=False
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/train_hcd.hdf5",
+        out_dir="dataset/processed_dataset/baseline_dataset/train_baseline_no_pos_opti",hierarchical=False,with_position=False
     )
 
     print('Processing val baseline dataset')
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/val_hcd_dummy.hdf5",
-        out_dir="dataset/processed_dataset/baseline_dataset/val_baseline_dummy_opti",hierarchical=False
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/val_hcd.hdf5",
+        out_dir="dataset/processed_dataset/baseline_dataset/val_baseline_no_pos_opti",hierarchical=False,with_position=False
     )
 
     print('Processing test baseline dataset')
     preprocess_to_chunks(
-        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/holdout_hcd_dummy.hdf5",
-        out_dir="dataset/processed_dataset/baseline_dataset/test_baseline_dummy_opti",hierarchical=False
+        data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/holdout_hcd.hdf5",
+        out_dir="dataset/processed_dataset/baseline_dataset/test_baseline_no_pos_opti",hierarchical=False,with_position=False
     )

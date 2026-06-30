@@ -43,7 +43,7 @@ def init_worker(seq, inty, charge, energy):
 # Worker function
 # =========================
 
-def process_one(i):
+def process_one(i, with_position=True):
     try :
         seq = ''.join(int_to_aa_dict[n] for n in SEQ[i].tolist())
         inty = INTY[i]
@@ -70,7 +70,8 @@ def process_one(i):
         )
         x_global = get_global_feature(mol, charge_ohe, energy)
         x = np.concatenate([x_local, x_global], axis=1)
-        pos = get_atom_positions(mol, mol_feats=mol_feats)
+        if with_position:
+            pos = get_atom_positions(mol, mol_feats=mol_feats)
 
         # ---- edges ----
         edges = [(b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in mol.GetBonds()]
@@ -84,13 +85,21 @@ def process_one(i):
         # ---- labels ----
         y = np.array(inty, dtype=np.float32)
 
-        return {
-            "x": x,
-            "pos": pos,
-            "edge_index": edge_index,
-            "edge_attr": edge_attr,
-            "y": y
-        }
+        if with_position:
+            return {
+                "x": x,
+                "pos": pos,
+                "edge_index": edge_index,
+                "edge_attr": edge_attr,
+                "y": y
+            }
+        else:
+            return {
+                "x": x,
+                "edge_index": edge_index,
+                "edge_attr": edge_attr,
+                "y": y
+            }
 
     except Exception as e:
         print(f"[Worker ERROR] index {i}: {e}")
@@ -100,7 +109,7 @@ def process_one(i):
 # =========================
 # Batch processing with multiprocessing
 # =========================
-def process_batch(start, end, sequence, intensity, charge, energy):
+def process_batch(start, end, sequence, intensity, charge, energy, with_position=True):
     try:
         seq_batch = sequence[start:end]
         inty_batch = intensity[start:end]
@@ -114,7 +123,7 @@ def process_batch(start, end, sequence, intensity, charge, energy):
             initializer=init_worker,
             initargs=(seq_batch, inty_batch, charge_batch, energy_batch)
         ) as pool:
-            results = pool.map(process_one, range(end - start))
+            results = pool.map(process_one, range(end - start), with_position)
 
         data_list = []
         for r in results:
@@ -127,13 +136,21 @@ def process_batch(start, end, sequence, intensity, charge, energy):
 
                 edge_index, edge_attr = to_undirected(edge_index, edge_attr)
 
-                data = Data(
-                    x=torch.from_numpy(r["x"]).float(),
-                    pos=torch.from_numpy(r["pos"]).float(),
-                    edge_index=edge_index,
-                    edge_attr=edge_attr,
-                    y=torch.from_numpy(r["y"]).float()
-                )
+                if with_position :
+                    data = Data(
+                            x=torch.from_numpy(r["x"]).float(),
+                            pos=torch.from_numpy(r["pos"]).float(),
+                            edge_index=edge_index,
+                            edge_attr=edge_attr,
+                            y=torch.from_numpy(r["y"]).float()
+                        )
+                else :
+                    data = Data(
+                        x=torch.from_numpy(r["x"]).float(),
+                        edge_index=edge_index,
+                        edge_attr=edge_attr,
+                        y=torch.from_numpy(r["y"]).float()
+                    )
 
                 data_list.append(data)
 
