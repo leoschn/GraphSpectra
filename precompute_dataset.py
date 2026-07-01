@@ -124,7 +124,7 @@ if __name__ == "__main__":
     print('Processing val hierachical dataset')
     preprocess_to_chunks(
         data_source="/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/raw_dataset/val_hcd.hdf5",
-        out_dir="dataset/processed_dataset/hierarchical_dataset/val_hierarchical_no_pos_opti",hierarchical=True
+        out_dir="dataset/processed_dataset/hierarchical_dataset/val_hierarchical_no_pos_opti",hierarchical=True,with_position=False
     )
 
     print('Processing train hierachical dataset')
