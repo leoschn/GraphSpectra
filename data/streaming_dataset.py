@@ -61,7 +61,11 @@ def process_one(i, with_position=True):
         if mol is None:
             return None
 
-        mol_feats = precompute_mol_features(mol)
+        excluded_feature = ['conformation']
+        if with_pos:
+            excluded_feature = None
+
+        mol_feats = precompute_mol_features(mol, excluded_feature=excluded_feature)
 
         # ---- node features ----
         x_local = get_node_features(

@@ -3,7 +3,7 @@ import subprocess
 
 hidden_dims = [64, 128, 256]
 
-lrs = [1e-4,1e-5,1e-6]
+lrs = [1e-1,1e-2,1e-3]
 
 num_layers = [3, 5, 7]
 

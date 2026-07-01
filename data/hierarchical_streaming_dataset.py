@@ -86,8 +86,11 @@ def process_one(i, with_pos=True):
 
         # ---- hierarchical node features ----
         global_features = np.concatenate([charge_ohe, energy]).astype(np.float32)
+        excluded_feature = ['conformation']
+        if with_pos:
+            excluded_feature=None
 
-        mol_feats = precompute_mol_features(mol)
+        mol_feats = precompute_mol_features(mol,excluded_feature=excluded_feature)
 
         # AA node features
         x_atom = get_node_features(
