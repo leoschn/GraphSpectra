@@ -13,8 +13,6 @@ configs = list(
         hidden_dims,
         lrs,
         num_layers,
-        dropouts,
-        replicate,
     )
 )
 
