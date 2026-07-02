@@ -13,6 +13,7 @@ from torch_geometric.utils import to_undirected
 from torch_geometric.data import Dataset
 
 from multiprocessing import Pool, cpu_count
+from functools import partial
 import torch.multiprocessing as mp
 mp.set_sharing_strategy("file_system")
 
@@ -127,7 +128,7 @@ def process_batch(start, end, sequence, intensity, charge, energy, with_position
             initializer=init_worker,
             initargs=(seq_batch, inty_batch, charge_batch, energy_batch)
         ) as pool:
-            results = pool.map(process_one, range(end - start), with_position)
+            results = pool.map(partial(process_one, b=with_position), range(end - start))
 
         data_list = []
         for r in results:
