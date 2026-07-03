@@ -63,7 +63,7 @@ def process_one(i, with_position=True):
             return None
 
         excluded_feature = ['conformation']
-        if with_pos:
+        if with_position:
             excluded_feature = None
 
         mol_feats = precompute_mol_features(mol, excluded_feature=excluded_feature)

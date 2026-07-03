@@ -67,7 +67,7 @@ def init_worker(seq, inty, charge, energy):
 # Worker function
 # =========================
 
-def process_one(i, with_pos=True):
+def process_one(i, with_position=True):
     try :
         seq = ''.join(int_to_aa_dict[n] for n in SEQ[i].tolist())
         inty = INTY[i]
@@ -88,7 +88,7 @@ def process_one(i, with_pos=True):
         # ---- hierarchical node features ----
         global_features = np.concatenate([charge_ohe, energy]).astype(np.float32)
         excluded_feature = ['conformation']
-        if with_pos:
+        if with_position:
             excluded_feature=None
 
         mol_feats = precompute_mol_features(mol,excluded_feature=excluded_feature)
@@ -148,7 +148,7 @@ def process_one(i, with_pos=True):
         total_aa = x_aa.shape[0]
         global_idx = total_atom + total_aa
 
-        if with_pos:
+        if with_position:
             pos = np.concatenate([
                 get_atom_positions(mol, mol_feats=mol_feats),
                 get_aa_node_positions(mol, mol_feats=mol_feats),
@@ -222,7 +222,7 @@ def process_one(i, with_pos=True):
         #only for aa-aa bonds
         y = np.array(inty, dtype=np.float32)
 
-        if with_pos :
+        if with_position :
             return {
                 "x": x,
                 "pos": pos,
