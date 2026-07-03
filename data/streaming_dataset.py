@@ -128,7 +128,7 @@ def process_batch(start, end, sequence, intensity, charge, energy, with_position
             initializer=init_worker,
             initargs=(seq_batch, inty_batch, charge_batch, energy_batch)
         ) as pool:
-            results = pool.map(partial(process_one, b=with_position), range(end - start))
+            results = pool.map(partial(process_one, with_position=with_position), range(end - start))
 
         data_list = []
         for r in results:
