@@ -66,7 +66,7 @@ def process_one(i, with_position=True):
         if with_position:
             excluded_feature = None
 
-        mol_feats = precompute_mol_features(mol, excluded_feature=excluded_feature)
+        mol_feats = precompute_mol_features(mol, exclude_feature=excluded_feature)
 
         # ---- node features ----
         x_local = get_node_features(
