@@ -44,14 +44,17 @@ def train_step(data):
 
 
 @torch.inference_mode()
-def evaluate(loader, split="val", save_predictions=False):
+def evaluate(loader, split="val", csv_path=None):
 
     model.eval()
 
     sample_losses = []
 
-    all_preds = []
-    all_targets = []
+    save_csv = csv_path is not None
+
+    if save_csv:
+        with open(csv_path, "w") as f:
+            f.write("Pred,True\n")
 
     pbar = tqdm(loader, desc=f"[{split.upper()}]")
 
@@ -60,34 +63,30 @@ def evaluate(loader, split="val", save_predictions=False):
 
         out = model(data)
 
-        # -------- batch loss (for logging) --------
         batch_loss = masked_spectral_distance(
             data.y.view(data.num_graphs, -1),
             out
         )
-        mean_loss = batch_loss.mean()
 
+        mean_loss = batch_loss.mean()
         pbar.set_postfix(loss=mean_loss.item())
 
         sample_losses.extend(batch_loss.cpu().numpy())
 
-        if save_predictions:
-            all_preds.append(out.cpu())
-            all_targets.append(data.y.view(data.num_graphs, -1).cpu())
+        if save_csv:
+            pred = out.cpu().numpy()
+            target = data.y.view(data.num_graphs, -1).cpu().numpy()
 
-    mean_loss = np.mean(sample_losses)
-    median_loss = np.median(sample_losses)
+            with open(csv_path, "a") as f:
+                for p, t in zip(pred, target):
+                    f.write(
+                        f"\"{p.tolist()}\",\"{t.tolist()}\"\n"
+                    )
 
-    results = {
-        "mean": mean_loss,
-        "median": median_loss,
+    return {
+        "mean": np.mean(sample_losses),
+        "median": np.median(sample_losses),
     }
-
-    if save_predictions:
-        results["predictions"] = torch.cat(all_preds, dim=0)
-        results["targets"] = torch.cat(all_targets, dim=0)
-
-    return results
 
 
 if __name__ == '__main__':
@@ -286,10 +285,12 @@ if __name__ == '__main__':
 
     model.load_state_dict(torch.load(args.save_path))
 
+    csv_path = os.path.splitext(args.save_path)[0] + "_predictions.csv"
+
     test_results = evaluate(
         test_loader,
         split="test",
-        save_predictions=True
+        csv_path=csv_path,
     )
 
     print("Test Mean:", test_results["mean"])
@@ -301,14 +302,3 @@ if __name__ == '__main__':
     })
 
     wandb.finish()
-
-    pred = test_results["predictions"].numpy()
-    target = test_results["targets"].numpy()
-
-
-    df_pred = pd.Series(pred.tolist())
-    df_true = pd.Series(target.tolist())
-    df_full = pd.DataFrame()
-    df_full['Pred'] = df_pred
-    df_full['True'] = df_true
-    df_full.to_csv(os.path.splitext(args.save_path)[0]+"_predictions.csv", index=False)
