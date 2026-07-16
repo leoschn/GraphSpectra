@@ -7,7 +7,7 @@ from data.graph_creation_utils import get_edge_dim
 
 
 class BaselineGAT(nn.Module):
-    def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3,dropout=0.):
+    def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3,dropout=0.,activation=False):
         super().__init__()
 
         self.gnn = GAT(
@@ -20,8 +20,10 @@ class BaselineGAT(nn.Module):
         )
 
         self.readout = SetTransformerAggregation(channels=hidden_dim, heads=8)
-
-        self.lin = nn.Linear(hidden_dim, out_dim)
+        if activation:
+            self.lin = nn.Sequential(nn.Linear(hidden_dim, out_dim), nn.ReLU())
+        else :
+            self.lin = nn.Linear(hidden_dim, out_dim)
 
     def forward(self, data):
         x = self.gnn(x=data.x, edge_index=data.edge_index, edge_attr=data.edge_attr, batch=data.batch)

@@ -36,11 +36,11 @@ def train_step(data):
     )
 
     loss = loss.mean()
-
+    median = loss.median()
     loss.backward()
     optimizer.step()
 
-    return loss.item(), data.num_graphs
+    return loss.item(), median.item(), data.num_graphs
 
 
 @torch.inference_mode()
@@ -114,6 +114,7 @@ if __name__ == '__main__':
             "dropout":args.dropout,
             "dataset_train": args.root_train,
             "scheduler":args.scheduler,
+            "activation":args.activation,
         }
     )
 
@@ -167,7 +168,8 @@ if __name__ == '__main__':
             hidden_dim=config.hidden_dim,
             num_layers=config.num_layers,
             out_dim=174,
-            dropout=config.dropout
+            dropout=config.dropout,
+            activation=config.activation=='relu'
         )
     elif config.model_type == "EGNN":
         model = EGNN_predictor(
@@ -205,6 +207,9 @@ if __name__ == '__main__':
             threshold=1e-4,
             threshold_mode="rel"
         )
+    elif config.scheduler == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, config.max_steps)
+
     current_lr = config.lr
 
 
@@ -226,9 +231,9 @@ if __name__ == '__main__':
 
         data = next(train_iter)
 
-        train_loss, batch_size = train_step(data)
+        train_loss, median, batch_size = train_step(data)
 
-        pbar.set_postfix(train_loss=train_loss)
+        pbar.set_postfix(train_loss=train_loss, median = median)
 
         # -----------------------
         # Logging
@@ -250,7 +255,8 @@ if __name__ == '__main__':
 
             if config.scheduler == 'plateau':
                 scheduler.step(val_loss)
-
+            elif config.scheduler == 'cosine':
+                scheduler.step()
                 current_lr = optimizer.param_groups[0]["lr"]
 
             print(
