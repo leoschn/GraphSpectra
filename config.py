@@ -18,7 +18,7 @@ def load_args():
     parser.add_argument('--num_layers', type=int, default=5)
     parser.add_argument('--num_timesteps', type=int, default=2)
     parser.add_argument('--dropout', type=float, default=0.)
-    parser.add_argument('--activation', type=str, default='relu')
+    parser.add_argument('--activation', type=str, default=None)
     parser.add_argument('--scheduler', type=str, default='cosine')
     args = parser.parse_args()
 
