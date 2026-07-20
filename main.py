@@ -9,6 +9,8 @@ import numpy as np
 from data.streaming_dataset import StreamingSpectraDataset
 from data.hierarchical_streaming_dataset import HierarchicalStreamingSpectraDataset
 from model.model import BaselineGAT, EGNN_predictor, BondBreakPredictor
+from model.model_2 import (Hierachical_Sequential_GAT, Hierachical_Sequential_GAT_Global,
+                           Hierarchical_Cyclic_Sequential_GAT, Hierarchical_Cyclic_Sequential_GAT_Global)
 from model.losses import masked_spectral_distance
 from config import load_args
 import pandas as pd
@@ -188,6 +190,30 @@ if __name__ == '__main__':
             num_layers=args.num_layers,
             out_dim=174)
 
+    elif config.model_type == "hierarchical_GAT":
+        model = Hierachical_Sequential_GAT_Global(node_feat_dim=train_dataset[0].x.shape[1],
+                    edge_feat_dim=train_dataset[0].edge_attr.shape[1], hidden_dim=args.hidden_dim,
+                 out_dim=174, num_layers=args.num_layers, heads=4, dropout=config.dropout,
+                 max_aa_aa_edges=None,)
+
+    elif config.model_type == "local_hierarchical_GAT":
+        model = Hierachical_Sequential_GAT(node_feat_dim=train_dataset[0].x.shape[1],
+                    edge_feat_dim=train_dataset[0].edge_attr.shape[1], hidden_dim=args.hidden_dim,
+                 out_dim=174, num_layers=args.num_layers, heads=4, dropout=config.dropout,
+                 max_aa_aa_edges=None,)
+
+    elif config.model_type == "local_cyclic_GAT":
+        model = Hierarchical_Cyclic_Sequential_GAT(node_feat_dim=train_dataset[0].x.shape[1],
+                    edge_feat_dim=train_dataset[0].edge_attr.shape[1], hidden_dim=args.hidden_dim,
+                 out_dim=174, num_layers=args.num_layers, heads=4, dropout=config.dropout,
+                 max_aa_aa_edges=None,)
+
+    elif config.model_type == "cyclic_GAT":
+        model = Hierarchical_Cyclic_Sequential_GAT_Global(node_feat_dim=train_dataset[0].x.shape[1],
+                    edge_feat_dim=train_dataset[0].edge_attr.shape[1], hidden_dim=args.hidden_dim,
+                 out_dim=174, num_layers=args.num_layers, heads=4, dropout=config.dropout,
+                 max_aa_aa_edges=None,)
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Device used:', device)
 
@@ -238,10 +264,11 @@ if __name__ == '__main__':
         # -----------------------
         # Logging
         # -----------------------
-        wandb.log({
-            "step": step,
-            "train_loss": train_loss
-        })
+        if step%100==0 : #to limit wandb sync size
+            wandb.log({
+                "step": step,
+                "train_loss": train_loss
+            })
 
         # -----------------------
         # Validation
