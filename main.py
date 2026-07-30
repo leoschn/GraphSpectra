@@ -37,13 +37,13 @@ def train_step(data):
         out
     )
 
-    loss = loss.mean()
+    loss_mean = loss.mean()
     median = loss.median()
-    loss.backward()
+    loss_mean.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
     optimizer.step()
 
-    return loss.item(), median.item(), data.num_graphs
+    return loss_mean.item(), median.item(), data.num_graphs
 
 
 @torch.inference_mode()
@@ -59,7 +59,7 @@ def evaluate(loader, split="val", csv_path=None):
         with open(csv_path, "w") as f:
             f.write("Pred,True\n")
 
-    pbar = tqdm(loader, desc=f"[{split.upper()}]")
+    pbar = tqdm(loader, desc=f"[{split.upper()}]", leave=False)
 
     for data in pbar:
         data = data.to(device)
