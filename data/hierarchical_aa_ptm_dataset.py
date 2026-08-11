@@ -39,8 +39,8 @@ from rdkit import Chem
 from torch_geometric.data import Data, Dataset
 from torch_geometric.utils import to_undirected
 
-from data import graph_creation_utils as gcu
-from data.mol_builder import RESIDUES, _connect
+import graph_creation_utils as gcu
+from mol_builder import RESIDUES, _connect
 
 # ---------------------------------------------------------------------------
 # Sequence parsing
@@ -706,7 +706,7 @@ def write_chunks(
 if __name__ == "__main__":
     # PTM-aware example. Spaces are optional when explicit residue names are
     # used, but explicit separators are recommended for readability.
-    sequence = ["A", "AcK", "G", "pY"]
+    sequence = ["A", "A", "G", "Y"]
 
     data, smiles = aa_ptm_to_pyg(
         sequence,

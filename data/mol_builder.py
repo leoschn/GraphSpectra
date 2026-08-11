@@ -19,7 +19,7 @@ RESIDUES = {
     "C": "[*:1]N[C@@H](CS)C(=O)[*:2]",
     "V": "[*:1]N[C@@H](C(C)C)C(=O)[*:2]",
     "L": "[*:1]N[C@@H](CC(C)C)C(=O)[*:2]",
-    "I": "[*:1]N[C@@H]([C@@H](CC)C)C(=O)[*:2]",
+    "I": "[*:1]N[C@@H]([C@H](CC)C)C(=O)[*:2]",
     "M": "[*:1]N[C@@H](CCSC)C(=O)[*:2]",
     "F": "[*:1]N[C@@H](Cc1ccccc1)C(=O)[*:2]",
     "Y": "[*:1]N[C@@H](Cc1ccc(O)cc1)C(=O)[*:2]",
@@ -189,24 +189,26 @@ def build_peptide(sequence):
 # ---------------------------------------------------------------------
 # Example
 # ---------------------------------------------------------------------
-STANDARD_AA = [
-    "A", "R", "N", "D", "C",
-    "E", "Q", "G", "H", "I",
-    "L", "K", "M", "F", "P",
-    "S", "T", "W", "Y", "V"
-]
-for i in range(20):
-    seq = ''
-    seq2 = []
-    for _ in range(5):
-        aa_to_add = random.choice(STANDARD_AA)
-        seq+=aa_to_add
-        seq2.extend(aa_to_add)
-    mol = build_peptide(seq2)
-    mol2 = rdkit.Chem.MolFromFASTA(seq)
-    print(seq)
-    print('built',Chem.MolToSmiles(mol))
-    print('true ',Chem.MolToSmiles(mol2))
-    print('-------------------------------------')
-    assert mol.HasSubstructMatch(mol2)
-    assert mol2.HasSubstructMatch(mol)
+
+if __name__ =='__main__':
+    STANDARD_AA = [
+        "A", "R", "N", "D", "C",
+        "E", "Q", "G", "H", "I",
+        "L", "K", "M", "F", "P",
+        "S", "T", "W", "Y", "V"
+    ]
+    for i in range(20):
+        seq = ''
+        seq2 = []
+        for _ in range(5):
+            aa_to_add = random.choice(STANDARD_AA)
+            seq+=aa_to_add
+            seq2.extend(aa_to_add)
+        mol = build_peptide(seq2)
+        mol2 = rdkit.Chem.MolFromFASTA(seq)
+        print(seq)
+        print('built',Chem.MolToSmiles(mol))
+        print('true ',Chem.MolToSmiles(mol2))
+        print('-------------------------------------')
+        assert mol.HasSubstructMatch(mol2)
+        assert mol2.HasSubstructMatch(mol)

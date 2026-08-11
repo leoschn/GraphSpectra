@@ -17,7 +17,7 @@ from functools import partial
 import torch.multiprocessing as mp
 mp.set_sharing_strategy("file_system")
 
-from data.graph_creation_utils import *
+from graph_creation_utils import *
 
 
 # =========================
