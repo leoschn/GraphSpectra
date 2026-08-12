@@ -49,6 +49,7 @@ from mol_builder import RESIDUES, _connect
 # Single-letter residues are also present in RESIDUES. Longer PTM names must
 # be matched first.
 _RESIDUE_TOKENS = sorted(RESIDUES.keys(), key=len, reverse=True)
+_STANDARD_AA_TOKENS = set("ACDEFGHIKLMNPQRSTVWY")
 
 
 def tokenize_aa_ptm_sequence(
@@ -141,6 +142,12 @@ def _build_ptm_aware_molecule(tokens: Sequence[str]) -> Chem.Mol:
     if not tokens:
         raise ValueError("Cannot build an empty peptide.")
 
+    if all(token in _STANDARD_AA_TOKENS for token in tokens):
+        mol = Chem.MolFromSequence("".join(tokens))
+        if mol is None:
+            raise ValueError(f"Failed to build peptide from sequence: {tokens!r}.")
+        return mol
+
     residue_mols = []
     for residue_number, token in enumerate(tokens, start=1):
         residue = Chem.MolFromSmiles(RESIDUES[token])
@@ -199,7 +206,11 @@ def aa_ptm_to_smiles(
     """
     tokens = tokenize_aa_ptm_sequence(sequence)
     mol = _build_ptm_aware_molecule(tokens)
-    smiles = Chem.MolToSmiles(mol, canonical=canonical)
+    smiles = Chem.MolToSmiles(
+        mol,
+        canonical=canonical,
+        isomericSmiles=True,
+    )
     return tokens, smiles
 
 
@@ -523,7 +534,11 @@ def aa_ptm_to_pyg(
 
     data = Data(**kwargs)
     data.sequence = tokens
-    data.smiles = Chem.MolToSmiles(mol, canonical=True)
+    data.smiles = Chem.MolToSmiles(
+        mol,
+        canonical=True,
+        isomericSmiles=True,
+    )
     data.num_atom_nodes = mol.GetNumAtoms()
     data.num_aa_nodes = len(tokens)
     data.global_node_index = mol.GetNumAtoms() + len(tokens)
@@ -706,7 +721,7 @@ def write_chunks(
 if __name__ == "__main__":
     # PTM-aware example. Spaces are optional when explicit residue names are
     # used, but explicit separators are recommended for readability.
-    sequence = ["A", "A", "G", "Y"]
+    sequence = ["A", "AcK", "G", "Y"]
 
     data, smiles = aa_ptm_to_pyg(
         sequence,
