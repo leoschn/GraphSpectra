@@ -14,7 +14,7 @@ if DATA_DIR not in sys.path:
     sys.path.insert(0, DATA_DIR)
 
 from data.hierarchical_aa_ptm_dataset import process_sequence_batch
-
+from data.sequence_preprocessing import convert_msms_to_prosit
 
 # =========================
 # CONFIG
@@ -162,7 +162,55 @@ def preprocess_ptm_hierarchical_to_chunks(
 if __name__ == "__main__":
     print("CHUNK_SIZE:", CHUNK_SIZE)
     print("BATCH_SIZE:", BATCH_SIZE)
-
-    preprocess_ptm_hierarchical_to_chunks('dataset_dummy/prosit_(cr)_2.csv',
-    'test_output',
-    with_position=False,)
+    raw_msms_path_list = ['SEARCH_Kmod_Formyl',
+                          'SEARCH_Kmod_Propion',
+                          'SEARCH_Ymod_Nitrotyr',
+                          'SEARCH_Kmod_Acetyl',
+                          'SEARCH_Kmod_Glutaryl',
+                          'SEARCH_Kmod_Succinyl',
+                          'SEARCH_Rmod_Citrullin',
+                          'SEARCH_Ymod_Phospho',
+                          'SEARCH_Kmod_Biotin',
+                          'SEARCH_Kmod_GlyGly',
+                          'SEARCH_Kmod_Trimethyl',
+                          'SEARCH_Rmod_Dimethyl-as',
+                          'SEARCH_Kmod_Butyryl',
+                          'SEARCH_Kmod_Hydroxyisobut',
+                          'SEARCH_Rmod_Dimethyl-sym',
+                          'SEARCH_Kmod_Crotonyl',
+                          'SEARCH_Kmod_Malonyl',
+                          'SEARCH_Rmod_Methyl',
+                          'SEARCH_Kmod_Dimethyl',
+                          'SEARCH_Kmod_Methyl',
+                          'SEARCH_Pmod_Hydroxypro'
+    ]
+    columns_name = ['Formyl (K) Probabilities',
+                    'Propion (K) Probabilities',
+                    'Nitrotyrosine (Y) Probabilities',
+                    'Acetyl (K) Probabilities',
+                    'Glutaryl (K) Probabilities',
+                    'Succinyl (K) Probabilities',
+                    'Citrulin (R) Probabilities',
+                    'Phospho (Y) Probabilities',
+                    'Biotine (K) Probabilities',
+                    'Glygly (K) Probabilities',
+                    'Trimethyl (K) Probabilities',
+                    'Dimethyl (R) Probabilities',
+                    'Butyryl (K) Probabilities',
+                    'Hydroxyisobutyryl (K) Probabilities',
+                    'Dimethyl (R) Probabilities',
+                    'Crotonyl (K) Probabilities',
+                    'Malonyl (K) Probabilities',
+                    'Methyl (R) Probabilities',
+                    'Dimethyl (K) Probabilities',
+                    'Methyl (K) Probabilities',
+                    'Hydroxyproline manuell (M) Probabilities',
+                    ]
+    full_path = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2],'combined/txt/msms.txt') for base_path in raw_msms_path_list]
+    for i in range(len(full_path)):
+        print(full_path[i])
+        convert_msms_to_prosit(msms_path_list=full_path[i],prob_col_name=columns_name,out_dir=raw_msms_path_list[i]+'.csv')
+    # preprocess_to_chunks(full_path, out_dir)
+    # preprocess_ptm_hierarchical_to_chunks('dataset_dummy/prosit_(cr)_2.csv',
+    # 'test_output',
+    # with_position=False,)
