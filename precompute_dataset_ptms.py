@@ -209,7 +209,7 @@ if __name__ == "__main__":
     full_path = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2],'combined/txt/msms.txt') for base_path in raw_msms_path_list]
     for i in range(len(full_path)):
         print(full_path[i])
-        convert_msms_to_prosit(msms_file=full_path[i],prob_col_name=columns_name,output_file=raw_msms_path_list[i]+'.csv')
+        convert_msms_to_prosit(msms_file=full_path[i],prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv')
     # preprocess_to_chunks(full_path, out_dir)
     # preprocess_ptm_hierarchical_to_chunks('dataset_dummy/prosit_(cr)_2.csv',
     # 'test_output',
