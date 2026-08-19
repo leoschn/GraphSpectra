@@ -14,12 +14,12 @@ Supported residue notation
 ---------------------------
 Examples:
     "ACDEFG"
-    "A AcK G pY"
-    ["A", "AcK", "G", "pY"]
-    "A-AcK-G-pY"
+    "ACDM(ox)"
+    "ACK(cr)GY(ph)"
 
-The tokenizer is greedy over residue names in mol_builder.RESIDUES, so names
-such as BiotinK, GlutarylK, Me2aR, Hyp, NO2Y, etc. are preserved as one residue.
+The tokenizer accepts compact residue-attached PTM codes only: one amino-acid
+letter, optionally followed by a parenthesized PTM code. Each resulting token
+must be present in mol_builder.RESIDUES.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from collections import defaultdict
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
-from typing import Iterable, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -46,67 +46,70 @@ from mol_builder import RESIDUES, _connect
 # Sequence parsing
 # ---------------------------------------------------------------------------
 
-# Single-letter residues are also present in RESIDUES. Longer PTM names must
-# be matched first.
-_RESIDUE_TOKENS = sorted(RESIDUES.keys(), key=len, reverse=True)
 _STANDARD_AA_TOKENS = set("ACDEFGHIKLMNPQRSTVWY")
+_PTM_TOKENS = sorted(
+    [token for token in RESIDUES if len(token) > 1],
+)
 
 
 def tokenize_aa_ptm_sequence(
-    sequence: Union[str, Sequence[str]],
+    sequence: str,
 ) -> list[str]:
     """
     Convert an AA/PTM sequence into residue tokens.
 
-    Accepted forms:
-      - list/tuple: ["A", "AcK", "G", "pY"]
-      - whitespace/comma/semicolon/dash separated:
-            "A AcK G pY"
-            "A-AcK-G-pY"
-      - compact notation:
-            "AAAcKGpY"
+    Accepted form:
+      - compact residue-attached notation:
+            "ACDM(ox)"
+            "ACK(cr)GY(ph)"
 
-    Compact notation is parsed greedily using the residue names in RESIDUES.
+    Lists, separator-delimited tokens, and prefix/suffix PTM aliases are not
+    accepted. PTM tokens must match mol_builder.RESIDUES exactly.
     """
-    if isinstance(sequence, (list, tuple)):
-        tokens = list(sequence)
-    else:
-        text = str(sequence).strip()
-        if not text:
-            raise ValueError("Empty peptide sequence.")
-
-        # Explicit separators are the least ambiguous representation.
-        for sep in (",", ";", "-", " ", "\t", "\n"):
-            if sep in text:
-                tokens = [x for x in text.replace(",", " ")
-                                      .replace(";", " ")
-                                      .replace("-", " ")
-                                      .split() if x]
-                break
-        else:
-            tokens = []
-            i = 0
-            while i < len(text):
-                matched = None
-                for token in _RESIDUE_TOKENS:
-                    if text.startswith(token, i):
-                        matched = token
-                        break
-                if matched is None:
-                    raise ValueError(
-                        f"Cannot tokenize sequence at character {i}: "
-                        f"{text[i:i+20]!r}. Known residues include "
-                        f"{_RESIDUE_TOKENS[:10]}..."
-                    )
-                tokens.append(matched)
-                i += len(matched)
-
-    unknown = [tok for tok in tokens if tok not in RESIDUES]
-    if unknown:
-        raise KeyError(
-            f"Unknown residue/PTM token(s): {unknown}. "
-            f"Available tokens include: {list(RESIDUES)[:10]}..."
+    if not isinstance(sequence, str):
+        raise TypeError(
+            "AA/PTM sequence must be a compact string such as 'ACDM(ox)'."
         )
+
+    text = sequence.strip().strip("_")
+    if not text:
+        raise ValueError("Empty peptide sequence.")
+
+    if any(sep in text for sep in [",", ";", "-", " ", "\t", "\n"]):
+        raise ValueError(
+            "AA/PTM sequence must be compact, for example 'ACDM(ox)'."
+        )
+
+    tokens = []
+    i = 0
+    while i < len(text):
+        residue = text[i]
+        if residue not in _STANDARD_AA_TOKENS:
+            raise ValueError(
+                f"Expected an amino-acid letter at character {i}: "
+                f"{text[i:i + 20]!r}."
+            )
+
+        i += 1
+        token = residue
+
+        if i < len(text) and text[i] == "(":
+            end = text.find(")", i + 1)
+            if end == -1:
+                raise ValueError(
+                    f"Unclosed PTM code after residue {residue!r} at "
+                    f"character {i - 1}."
+                )
+            token = f"{residue}{text[i:end + 1]}"
+            i = end + 1
+
+        if token not in RESIDUES:
+            raise KeyError(
+                f"Unknown residue/PTM token: {token!r}. "
+                f"Available PTM tokens include: {_PTM_TOKENS[:10]}."
+            )
+
+        tokens.append(token)
 
     return tokens
 
@@ -198,7 +201,7 @@ def _build_ptm_aware_molecule(tokens: Sequence[str]) -> Chem.Mol:
 
 
 def aa_ptm_to_smiles(
-    sequence: Union[str, Sequence[str]],
+    sequence: str,
     canonical: bool = True,
 ) -> tuple[list[str], str]:
     """
@@ -215,7 +218,7 @@ def aa_ptm_to_smiles(
 
 
 def aa_ptm_to_mol(
-    sequence: Union[str, Sequence[str]],
+    sequence: str,
 ) -> tuple[list[str], Chem.Mol]:
     """AA/PTM sequence -> residue tokens + RDKit molecule."""
     tokens = tokenize_aa_ptm_sequence(sequence)
@@ -487,7 +490,7 @@ def _build_hierarchical_arrays(
 
 
 def aa_ptm_to_pyg(
-    sequence: Union[str, Sequence[str]],
+    sequence: str,
     charge_ohe: Optional[np.ndarray] = None,
     energy: Optional[np.ndarray] = None,
     y: Optional[Union[np.ndarray, Sequence[float], float]] = None,
@@ -553,7 +556,7 @@ def aa_ptm_to_pyg(
 # ---------------------------------------------------------------------------
 
 def process_sequence_batch(
-    sequences: Sequence[Union[str, Sequence[str]]],
+    sequences: Sequence[str],
     labels: Optional[Sequence] = None,
     charge: Optional[Sequence] = None,
     energy: Optional[Sequence] = None,
@@ -668,7 +671,7 @@ class HierarchicalStreamingAAPTMDataset(Dataset):
 
 
 def write_chunks(
-    sequences: Sequence[Union[str, Sequence[str]]],
+    sequences: Sequence[str],
     output_dir: str,
     chunk_size: int = 1000,
     labels: Optional[Sequence] = None,
@@ -719,9 +722,7 @@ def write_chunks(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    # PTM-aware example. Spaces are optional when explicit residue names are
-    # used, but explicit separators are recommended for readability.
-    sequence = ["A", "AcK", "G", "Y"]
+    sequence = "ACDM(ox)"
 
     data, smiles = aa_ptm_to_pyg(
         sequence,

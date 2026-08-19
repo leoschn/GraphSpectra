@@ -38,84 +38,84 @@ RESIDUES = {
     # ---------------------- Methionine PTMs ----------------------
 
     #Oxydation
-    "OxM":  "[*:1]N[C@@H](CCS(=O)C)C(=O)[*:2]",
+    "M(ox)":  "[*:1]N[C@@H](CCS(=O)C)C(=O)[*:2]",
 
     # ---------------------- Lysine PTMs ----------------------
 
     # Acetylation
-    "AcK": "[*:1]N[C@@H](CCCCNC(=O)C)C(=O)[*:2]",
+    "K(ac)": "[*:1]N[C@@H](CCCCNC(=O)C)C(=O)[*:2]",
 
     # Biotinylation
-    "BiotinK": "[*:1]N[C@@H](CCCCNC(=O)CCCC[C@@H]1SC[C@]2([H])NC(=O)N[C@]12[H])C(=O)[*:2]",
+    "K(bi)": "[*:1]N[C@@H](CCCCNC(=O)CCCC[C@@H]1SC[C@]2([H])NC(=O)N[C@]12[H])C(=O)[*:2]",
 
 
     # Butyrylation
-    "ButK": "[*:1]N[C@@H](CCCCNC(=O)CCC)C(=O)[*:2]",
+    "K(bu)": "[*:1]N[C@@H](CCCCNC(=O)CCC)C(=O)[*:2]",
 
     # Crotonylation
-    "CroK": "[*:1]N[C@@H](CCCCNC(=O)/C=C/C)C(=O)[*:2]",
+    "K(cr)": "[*:1]N[C@@H](CCCCNC(=O)/C=C/C)C(=O)[*:2]",
 
-    # Monomethylation
-    "MeK": "[*:1]N[C@@H](CCCCNC)C(=O)O[*:2]",
+    # Methylation
+    "K(me)": "[*:1]N[C@@H](CCCCNC)C(=O)O[*:2]",
 
     # Dimethylation
-    "Me2K": "[*:1]N[C@@H](CCCCN(C)C)C(=O)[*:2]",
+    "K(di)": "[*:1]N[C@@H](CCCCN(C)C)C(=O)[*:2]",
 
     # Trimethylation
-    "Me3K": "[*:1]N[C@@H](CCCC[N+](C)(C)C)C(=O)[*:2]",
+    "K(tr)": "[*:1]N[C@@H](CCCC[N+](C)(C)C)C(=O)[*:2]",
 
     # Formylation
-    "FormylK": "[*:1]N[C@@H](CCCCNC([H])=O)C(=O)[*:2]",
+    "K(fo)": "[*:1]N[C@@H](CCCCNC([H])=O)C(=O)[*:2]",
 
 
     # Glutarylation
-    "GlutarylK": "[*:1]N[C@@H](CCCCNC(=O)CCCC(=O)O)C(=O)[*:2]",
+    "K(gl)": "[*:1]N[C@@H](CCCCNC(=O)CCCC(=O)O)C(=O)[*:2]",
 
     # Hydroxyisobutyrylation
-    "HibK": "[*:1]N[C@@H](CCCCNC(=O)C(C)(C)O)C(=O)[*:2]",
+    "K(hy)": "[*:1]N[C@@H](CCCCNC(=O)C(C)(C)O)C(=O)[*:2]",
 
     # Malonylation
-    "MalK": "[*:1]N[C@@H](CCCCNC(=O)CC(=O)O)C(=O)[*:2]",
+    "K(ma)": "[*:1]N[C@@H](CCCCNC(=O)CC(=O)O)C(=O)[*:2]",
 
     # Propionylation
-    "PropK": "[*:1]N[C@@H](CCCCNC(=O)CC)C(=O)[*:2]",
+    "K(pr)": "[*:1]N[C@@H](CCCCNC(=O)CC)C(=O)[*:2]",
 
     # Succinylation
-    "SucK": "[*:1]N[C@@H](CCCCNC(=O)CCC(=O)O)C(=O)[*:2]",
+    "K(su)": "[*:1]N[C@@H](CCCCNC(=O)CCC(=O)O)C(=O)[*:2]",
 
     # # GlyGly remnant (ubiquitin)
-    # "GGK": "[*:1]N[C@@H](CCCCNC(=O)CNC(=O)CN)C(=O)[*:2]",
-
+    # "K(gl)": "[*:1]N[C@@H](CCCCNC(=O)CNC(=O)CN)C(=O)[*:2]",
+    #a retraiter car code non identique
 
     # ---------------------- Arginine PTMs ----------------------
 
     # Citrullination
-    "CitR": "[*:1]N[C@@H](CCCNC(N)=O)C(=O)[*:2]",
+    "R(ci)": "[*:1]N[C@@H](CCCNC(N)=O)C(=O)[*:2]",
 
-    # Monomethylation
-    "MeR": "[*:1]N[C@@H](CCCNC(=N)NC)C(=O)[*:2]",
+    # Methylation
+    "R(me)": "[*:1]N[C@@H](CCCNC(=N)NC)C(=O)[*:2]",
 
 
     # Asymmetric dimethylation (ADMA)
-    "Me2aR": "[*:1]N[C@@H](CCCNC(=N)N(C)C)C(=O)[*:2]",
+    "R(di)": "[*:1]N[C@@H](CCCNC(=N)N(C)C)C(=O)[*:2]",
 
     # Symmetric dimethylation (SDMA)
-    "Me2sR": "[*:1]N[C@@H](CCCNC(=NC)NC)C(=O)[*:2]",
-
+    "R(di)": "[*:1]N[C@@H](CCCNC(=NC)NC)C(=O)[*:2]",
+    #a retraiter car code non identique
 
     # ---------------------- Proline PTMs ----------------------
 
     # trans-4-Hydroxyproline
-    "Hyp": "[*:1]N1CC[C@H](O)[C@H]1C(=O)[*:2]",
+    "P(hy)": "[*:1]N1CC[C@H](O)[C@H]1C(=O)[*:2]",
 
 
     # ---------------------- Tyrosine PTMs ----------------------
 
     # Nitration
-    "NO2Y": "[*:1]N[C@@H](Cc1ccc(O)c([N+](=O)[O-])c1)C(=O)[*:2]",
+    "Y(ni)": "[*:1]N[C@@H](Cc1ccc(O)c([N+](=O)[O-])c1)C(=O)[*:2]",
 
     # Phosphorylation
-    "pY": "[*:1]N[C@@H](Cc1ccc(OP(=O)(O)O)cc1)C(=O)[*:2]",
+    "Y(ph)": "[*:1]N[C@@H](Cc1ccc(OP(=O)(O)O)cc1)C(=O)[*:2]",
     }
 
 
