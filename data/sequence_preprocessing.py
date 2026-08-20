@@ -302,10 +302,31 @@ def convert_msms_to_prosit(
 
         # Remove leading/trailing "_", convert notation, etc.
         sequence = convert_sequence(sequence)
+        seq_length = len(sequence) - 4*sequence.count('(') #to account for PTMs
 
         precursor_charge = int(row["Charge"])
 
-        intensity_vector = np.full(174, -1.0)
+        intensity_vector = np.zeros(174, dtype=float)
+
+        #set impossible config to -1 :
+
+        impossible_index = np.full(174, False)
+
+        #based on length
+        impossible_index[6*(seq_length-1):] = True
+
+        #based on charge
+        if precursor_charge == 1:
+            impossible_index[1::6] = True
+            impossible_index[2::6] = True
+            impossible_index[4::6] = True
+            impossible_index[5::6] = True
+
+        elif precursor_charge == 2:
+            impossible_index[2::6] = True
+            impossible_index[5::6] = True
+
+        intensity_vector[impossible_index] = -1
 
         matches = str(row["Matches"]).split(";")
         intensities = str(row["Intensities"]).split(";")
@@ -344,9 +365,7 @@ def convert_msms_to_prosit(
             norm = inten / max_intensity
 
             # keep largest intensity if duplicated
-            if intensity_vector[idx] == -1:
-                intensity_vector[idx] = norm
-            else:
+            if intensity_vector[idx] != -1:
                 intensity_vector[idx] = max(
                     intensity_vector[idx],
                     norm
