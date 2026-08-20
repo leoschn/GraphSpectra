@@ -203,7 +203,7 @@ if __name__ == "__main__":
                     'Malonyl (K) Probabilities',
                     'Methyl (R) Probabilities',
                     'Dimethyl (K) Probabilities',
-                    'Methyl (K) Probabilities',
+                    'Methyl (KR) Probabilities',
                     'Hydroxyproline manuell (M) Probabilities',
                     ]
     full_path = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2],'combined/txt/msms.txt') for base_path in raw_msms_path_list]
