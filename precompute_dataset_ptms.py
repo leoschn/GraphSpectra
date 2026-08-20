@@ -185,7 +185,7 @@ if __name__ == "__main__":
                           'SEARCH_Pmod_Hydroxypro'
     ]
     columns_name = ['Formyl (K) Probabilities',
-                    'Propion  (K) Probabilitiess',
+                    'Propion  (K) Probabilities',
                     'Nitrotyrosine (Y) Probabilities',
                     'Acetyl (K) Probabilities',
                     'Glutaryl (K) Probabilities',
