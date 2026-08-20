@@ -192,7 +192,7 @@ if __name__ == "__main__":
                     'Succinyl (K) Probabilities',
                     'Citrullin (R) Probabilities',
                     'Phospho (Y) Probabilities',
-                    'Biotine (K) Probabilities',
+                    'Biotin (K) Probabilities',
                     'Glygly (K) Probabilities',
                     'Trimethyl (K) Probabilities',
                     'Dimethyl (R) Probabilities',
