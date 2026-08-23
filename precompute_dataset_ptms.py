@@ -207,10 +207,19 @@ if __name__ == "__main__":
                     'Hydroxyproline manuell (M) Probabilities',
                     ]
     full_path = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2],'combined/txt/msms.txt') for base_path in raw_msms_path_list]
+    path_csv_list=[]
     for i in range(len(full_path)):
         print(full_path[i])
         convert_msms_to_prosit(msms_file=full_path[i],prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv')
-    # preprocess_to_chunks(full_path, out_dir)
-    # preprocess_ptm_hierarchical_to_chunks('dataset_dummy/prosit_(cr)_2.csv',
+        path_csv_list.append(raw_msms_path_list[i]+'.csv')
+
+    #merge all dataset
+    list_df = [pd.read_csv(path_csv_list[i]) for i in range(len(path_csv_list))]
+    df_complete = pd.concat(list_df)
+    df_complete.to_csv('df_21_ptms.csv', index=False)
+
+    if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')):
+        os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
+    preprocess_ptm_hierarchical_to_chunks('dataset_dummy/prosit_(cr)_2.csv',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
     # 'test_output',
     # with_position=False,)
