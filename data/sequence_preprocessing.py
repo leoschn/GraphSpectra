@@ -62,32 +62,62 @@ def annotate_msms_with_acquisition(
 
     def find_raw_msms_file(raw_file_name):
 
-        expected_file = (
-            raw_msms_dir /
-            f"{raw_file_name}.raw.msms"
-        )
+        # Convert to clean string
+        raw_file_name = str(raw_file_name).strip()
 
-        if expected_file.exists():
+        # Exact expected filename
+        expected_name = f"{raw_file_name}.raw.msms"
+
+        expected_file = raw_msms_dir / expected_name
+
+        # 1. Direct exact match
+        if expected_file.is_file():
             return expected_file
 
-        # Fallback search
-        candidates = list(
-            raw_msms_dir.glob(
-                f"{raw_file_name}*.raw.msms"
-            )
-        )
+        # 2. Search all .raw.msms files
+        candidates = list(raw_msms_dir.glob("*.raw.msms"))
 
-        if len(candidates) == 1:
-            return candidates[0]
+        # Normalize names for robust matching
+        normalized_target = raw_file_name.strip()
 
-        if len(candidates) > 1:
+        matches = []
+
+        for candidate in candidates:
+
+            filename = candidate.name
+
+            # Remove ".raw.msms"
+            if filename.endswith(".raw.msms"):
+                candidate_raw_name = filename[:-len(".raw.msms")]
+
+                if candidate_raw_name.strip() == normalized_target:
+                    matches.append(candidate)
+
+        # Exactly one match
+        if len(matches) == 1:
+            return matches[0]
+
+        # Multiple matches
+        if len(matches) > 1:
+
             print(
-                f"\nWARNING: Multiple .raw.msms files found "
-                f"for:\n{raw_file_name}"
+                f"\nWARNING: Multiple matching .raw.msms "
+                f"files found for:\n"
+                f"  {repr(raw_file_name)}"
             )
 
-            for candidate in candidates:
-                print(f"  {candidate}")
+            for match in matches:
+                print(f"  {repr(match.name)}")
+
+            return None
+
+        # No matches: print diagnostics
+        print(
+            f"\nDEBUG: No file found for:\n"
+            f"  Raw file from msms.txt: {repr(raw_file_name)}\n"
+            f"  Expected filename:      {repr(expected_name)}\n"
+            f"  Search directory:       {raw_msms_dir.resolve()}"
+        )
 
         return None
 
@@ -920,6 +950,36 @@ def resolve_localized_modification(
     None
         If localization is ambiguous.
     """
+    # --------------------------------------------------
+    # Invalid sequence
+    # --------------------------------------------------
+
+    if modified_sequence is None:
+        return None
+
+    if pd.isna(modified_sequence):
+        return None
+
+    # --------------------------------------------------
+    # No localization probabilities
+    #
+    # Important: preserve the existing sequence!
+    # --------------------------------------------------
+
+    if probability_string is None:
+        return modified_sequence
+
+    if pd.isna(probability_string):
+        return modified_sequence
+
+    probability_string = str(probability_string).strip()
+
+    if probability_string == "":
+        return modified_sequence
+
+    # --------------------------------------------------
+    # Normal localization
+    # --------------------------------------------------
 
     seq = modified_sequence.strip("_")
 
@@ -1108,7 +1168,7 @@ def convert_msms_to_prosit(
             mod_code=mod_code
         )
 
-        # Resolve Mox localization
+        #Resolve Mox localization
         sequence = resolve_localized_modification(
             modified_sequence=sequence,
             probability_string=row['Oxidation (M) Probabilities'],
@@ -1216,14 +1276,14 @@ def convert_msms_to_prosit(
 
 if __name__ == "__main__":
 
-    annotate_msms_with_acquisition(input_file="../dataset_dummy/Kmod_Acetyl/combined/txt/msms.txt",raw_msms_dir="../dataset_dummy/Kmod_Acetyl/",output_file="../dataset_dummy/Kmod_Acetyl/combined/txt/msms_annotated.txt")
+    annotate_msms_with_acquisition(input_file="../dataset_dummy/SEARCH_Kmod_Formyl/Kmod_Formyl/combined/txt/msms.txt",raw_msms_dir="../dataset_dummy/SEARCH_Kmod_Formyl/Kmod_Formyl/",output_file="../dataset_dummy/SEARCH_Kmod_Formyl/Kmod_Formyl/combined/txt/msms_annotated.txt")
 
     convert_msms_to_prosit(
-        msms_file="../dataset_dummy/Kmod_Acetyl/combined/txt/msms_annotated.txt",
+        msms_file="../dataset_dummy/SEARCH_Kmod_Formyl/Kmod_Formyl/combined/txt/msms_annotated.txt",
         output_file="../dataset_dummy/prosit_(cr)_2.csv",
         residue="K",
-        mod_code="ac",
+        mod_code="fo",
         low=0.05,
         high=0.95,
-        prob_col_name='Acetyl (K) Probabilities'
+        prob_col_name='Formyl (K) Probabilities'
     )
