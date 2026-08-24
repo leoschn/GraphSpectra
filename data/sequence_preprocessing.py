@@ -200,7 +200,7 @@ def annotate_msms_with_acquisition(
 
             result[
                 "RAW Collision energy"
-            ] = hcd_value
+            ] = hcd_value/100
 
 
         # --------------------------------------------------------
@@ -238,7 +238,7 @@ def annotate_msms_with_acquisition(
 
             result[
                 "RAW Collision energy"
-            ] = cid_value
+            ] = cid_value/100
 
 
         # --------------------------------------------------------
@@ -264,7 +264,7 @@ def annotate_msms_with_acquisition(
 
             result[
                 "RAW Collision energy"
-            ] = activations[0][1]
+            ] = activations[0][1]/100
 
 
         # --------------------------------------------------------
@@ -1084,7 +1084,7 @@ def convert_msms_to_prosit(
     fragmentation_filter='HCD',
     residue="K",
     mod_code="cr",
-    mod_code_modified="cr",
+    mod_code_modified=None,
     prob_col_name='Crotonyl (K) Probabilities',
     low=0.05,
     high=0.95,
@@ -1100,12 +1100,20 @@ def convert_msms_to_prosit(
 
         sequence = row["Modified sequence"]
 
-        # Resolve Crotonyl localization
+        # Resolve Variable localization
         sequence = resolve_localized_modification(
             modified_sequence=sequence,
             probability_string=row[prob_col_name],
             residue=residue,
             mod_code=mod_code
+        )
+
+        # Resolve Mox localization
+        sequence = resolve_localized_modification(
+            modified_sequence=sequence,
+            probability_string=row['Probabilities	Oxidation (M)'],
+            residue='M',
+            mod_code='ox'
         )
 
         # Ambiguous localization -> discard spectrum
@@ -1192,7 +1200,6 @@ def convert_msms_to_prosit(
                 precursor_charge
             ),
             "collision_energy": row['RAW Collision energy'],
-            "fragmentation": fragmentation
         })
 
     out = pd.DataFrame(results)
@@ -1209,12 +1216,14 @@ def convert_msms_to_prosit(
 
 if __name__ == "__main__":
 
+    annotate_msms_with_acquisition(input_file="../dataset_dummy/Kmod_Acetyl/combined/txt/msms.txt",raw_msms_dir="../dataset_dummy/Kmod_Acetyl/",output_file="../dataset_dummy/Kmod_Acetyl/combined/txt/msms_annotated.txt")
+
     convert_msms_to_prosit(
-        msms_file="../dataset_dummy/msms.txt",
+        msms_file="../dataset_dummy/Kmod_Acetyl/combined/txt/msms_annotated.txt",
         output_file="../dataset_dummy/prosit_(cr)_2.csv",
-        collision_energy=0.35,
         residue="K",
-        mod_code="cr",
+        mod_code="ac",
         low=0.05,
         high=0.95,
+        prob_col_name='Acetyl (K) Probabilities'
     )
