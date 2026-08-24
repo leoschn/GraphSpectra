@@ -1111,7 +1111,7 @@ def convert_msms_to_prosit(
         # Resolve Mox localization
         sequence = resolve_localized_modification(
             modified_sequence=sequence,
-            probability_string=row['Probabilities	Oxidation (M)'],
+            probability_string=row['Oxidation (M) Probabilities'],
             residue='M',
             mod_code='ox'
         )
