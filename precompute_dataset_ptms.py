@@ -184,6 +184,7 @@ if __name__ == "__main__":
                           'SEARCH_Kmod_Methyl',
                           'SEARCH_Pmod_Hydroxypro'
     ]
+
     columns_name = ['Formyl (K) Probabilities',
                     'Propion  (K) Probabilities',
                     'Nitrotyrosine (Y) Probabilities',
@@ -206,12 +207,91 @@ if __name__ == "__main__":
                     'Methyl (KR) Probabilities',
                     'Hydroxyproline manuell (M) Probabilities',
                     ]
+
+    residue_list=['K',
+                  'K',
+                  'Y',
+                  'K',
+                  'K',
+                  'K',
+                  'R',
+                  'Y',
+                  'K',
+                  'K',
+                  'K',
+                  'R',
+                  'K',
+                  'K',
+                  'R',
+                  'K',
+                  'K',
+                  'R'
+                  'K',
+                  'K',
+                  'P',
+                  ]
+
+    mod_codefix duplicate PTMs_list=['fo',
+                  'pr',
+                  'ni',
+                  'ac',
+                  'gl'
+                  'su',
+                  'ci',
+                  'ph',
+                  'bi',
+                  'gl',
+                  'tr',
+                  'di',
+                  'bu',
+                  'hy',
+                  'di',
+                  'cr',
+                  'ma',
+                  'me',
+                  'di',
+                  'cr',
+                  'ma',
+                  'me',
+                  'di',
+                  'me',
+                  'hy',
+    ]
+
+    mod_code_list_modified=[None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  'gy',
+                  None,
+                  'ds',
+                  None,
+                  None,
+                  'da',
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+    ]
+
+
     full_path = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2],'combined/txt/msms') for base_path in raw_msms_path_list]
     path_csv_list=[]
     for i in range(len(full_path)):
         print(full_path[i])
         annotate_msms_with_acquisition(input_file=full_path[i]+'.txt',raw_msms_dir=raw_msms_dir_list[i],output_file=full_path[i]+'_annotated.txt',)
-        convert_msms_to_prosit(msms_file=full_path[i]+'_annotated.txt',prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv')
+        convert_msms_to_prosit(msms_file=full_path[i]+'_annotated.txt',prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv',residue=residue_list[i],mod_code=mod_code_list[i],mod_code_modified=mod_cod_list_modified[i])
         path_csv_list.append(raw_msms_path_list[i]+'.csv')
 
     #merge all dataset

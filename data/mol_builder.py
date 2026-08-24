@@ -84,8 +84,7 @@ RESIDUES = {
     "K(su)": "[*:1]N[C@@H](CCCCNC(=O)CCC(=O)O)C(=O)[*:2]",
 
     # # GlyGly remnant (ubiquitin)
-    # "K(gl)": "[*:1]N[C@@H](CCCCNC(=O)CNC(=O)CN)C(=O)[*:2]",
-    #a retraiter car code non identique
+    "K(gy)": "[*:1]N[C@@H](CCCCNC(=O)CNC(=O)CN)C(=O)[*:2]", #modified name to avoid confusion with K(gl)
 
     # ---------------------- Arginine PTMs ----------------------
 
@@ -97,11 +96,11 @@ RESIDUES = {
 
 
     # Asymmetric dimethylation (ADMA)
-    "R(di)": "[*:1]N[C@@H](CCCNC(=N)N(C)C)C(=O)[*:2]",
+    "R(da)": "[*:1]N[C@@H](CCCNC(=N)N(C)C)C(=O)[*:2]", #modified name to avoid confusion with dimethylation (SDMA)
 
     # Symmetric dimethylation (SDMA)
-    "R(di)": "[*:1]N[C@@H](CCCNC(=NC)NC)C(=O)[*:2]",
-    #a retraiter car code non identique
+    "R(ds)": "[*:1]N[C@@H](CCCNC(=NC)NC)C(=O)[*:2]", #modified name to avoid confusion with dimethylation (ADMA)
+
 
     # ---------------------- Proline PTMs ----------------------
 

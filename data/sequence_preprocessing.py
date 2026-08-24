@@ -1084,6 +1084,7 @@ def convert_msms_to_prosit(
     fragmentation_filter='HCD',
     residue="K",
     mod_code="cr",
+    mod_code_modified="cr",
     prob_col_name='Crotonyl (K) Probabilities',
     low=0.05,
     high=0.95,
@@ -1181,6 +1182,8 @@ def convert_msms_to_prosit(
                     intensity_vector[idx],
                     norm
                 )
+        if mod_code_modified != None:
+            sequence.replace(residue+'('+mod_code+')',residue+'('+mod_code_modified+')')
 
         results.append({
             "intensities": intensity_vector.tolist(),
