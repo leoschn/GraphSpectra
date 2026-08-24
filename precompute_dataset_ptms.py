@@ -14,7 +14,7 @@ if DATA_DIR not in sys.path:
     sys.path.insert(0, DATA_DIR)
 
 from data.hierarchical_aa_ptm_dataset import process_sequence_batch
-from data.sequence_preprocessing import convert_msms_to_prosit
+from data.sequence_preprocessing import convert_msms_to_prosit, annotate_msms_with_acquisition
 
 # =========================
 # CONFIG
@@ -206,11 +206,12 @@ if __name__ == "__main__":
                     'Methyl (KR) Probabilities',
                     'Hydroxyproline manuell (M) Probabilities',
                     ]
-    full_path = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2],'combined/txt/msms.txt') for base_path in raw_msms_path_list]
+    full_path = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2],'combined/txt/msms') for base_path in raw_msms_path_list]
     path_csv_list=[]
     for i in range(len(full_path)):
         print(full_path[i])
-        convert_msms_to_prosit(msms_file=full_path[i],prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv')
+        annotate_msms_with_acquisition(input_file=full_path[i]+'.txt',raw_msms_dir=raw_msms_dir_list[i],output_file=full_path[i]+'_annotated.txt',)
+        convert_msms_to_prosit(msms_file=full_path[i]+'_annotated.txt',prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv')
         path_csv_list.append(raw_msms_path_list[i]+'.csv')
 
     #merge all dataset
@@ -220,6 +221,6 @@ if __name__ == "__main__":
 
     if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')):
         os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
-    preprocess_ptm_hierarchical_to_chunks('dataset_dummy/prosit_(cr)_2.csv',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
+    preprocess_ptm_hierarchical_to_chunks('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
     # 'test_output',
     # with_position=False,)

@@ -4,6 +4,816 @@ import re
 import ast
 
 
+def annotate_msms_with_acquisition(
+    input_file,
+    raw_msms_dir,
+    output_file
+):
+    """
+    Annotate a MaxQuant msms.txt file with fragmentation and
+    activation metadata extracted from corresponding .raw.msms files.
+
+    Parameters
+    ----------
+    input_file : str or pathlib.Path
+        Path to MaxQuant msms.txt.
+
+    raw_msms_dir : str or pathlib.Path
+        Directory containing files named:
+
+        <Raw file>.raw.msms
+
+        For example:
+
+        02330a_GG1_3990_07_PTM_TrainKit_Kmod_Acetyl_200fmol_2xIT_2xHCD_R1.raw.msms
+
+    output_file : str or pathlib.Path
+        Path where the annotated TSV file will be written.
+
+    Returns
+    -------
+    annotated_msms : pandas.DataFrame
+        Original msms.txt DataFrame with additional RAW acquisition
+        metadata columns.
+
+    Added columns
+    -------------
+    RAW Scan type
+    RAW Mass analyzer
+    RAW Fragmentation
+    RAW Collision energy
+    RAW ETD parameter
+    RAW Supplemental activation
+    Fragmentation match
+    """
+
+    # ============================================================
+    # Convert inputs to Path objects
+    # ============================================================
+
+    input_file = Path(input_file)
+    raw_msms_dir = Path(raw_msms_dir)
+    output_file = Path(output_file)
+
+
+    # ============================================================
+    # Helper: find corresponding .raw.msms file
+    # ============================================================
+
+    def find_raw_msms_file(raw_file_name):
+
+        expected_file = (
+            raw_msms_dir /
+            f"{raw_file_name}.raw.msms"
+        )
+
+        if expected_file.exists():
+            return expected_file
+
+        # Fallback search
+        candidates = list(
+            raw_msms_dir.glob(
+                f"{raw_file_name}*.raw.msms"
+            )
+        )
+
+        if len(candidates) == 1:
+            return candidates[0]
+
+        if len(candidates) > 1:
+            print(
+                f"\nWARNING: Multiple .raw.msms files found "
+                f"for:\n{raw_file_name}"
+            )
+
+            for candidate in candidates:
+                print(f"  {candidate}")
+
+        return None
+
+
+    # ============================================================
+    # Helper: parse scan_type
+    # ============================================================
+
+    def parse_scan_type(scan_type):
+
+        result = {
+            "RAW Scan type": scan_type,
+            "RAW Mass analyzer": None,
+            "RAW Fragmentation": None,
+            "RAW Collision energy": None,
+            "RAW ETD parameter": None,
+            "RAW Supplemental activation": None
+        }
+
+        if pd.isna(scan_type):
+            return result
+
+        text = str(scan_type).strip()
+        text_lower = text.lower()
+
+
+        # --------------------------------------------------------
+        # Mass analyzer
+        # --------------------------------------------------------
+
+        analyzer_match = re.match(
+            r"^\s*(ITMS|FTMS)",
+            text,
+            flags=re.IGNORECASE
+        )
+
+        if analyzer_match:
+
+            result["RAW Mass analyzer"] = (
+                analyzer_match.group(1).upper()
+            )
+
+
+        # --------------------------------------------------------
+        # Extract all activation events
+        #
+        # Examples:
+        #
+        # @cid35.00
+        # @hcd28.00
+        # @etd123.04
+        # @etd123.04@hcd28.00
+        # @etd123.04@cid35.00
+        # --------------------------------------------------------
+
+        activation_matches = re.findall(
+            r"@(cid|hcd|etd)(\d+(?:\.\d+)?)",
+            text_lower,
+            flags=re.IGNORECASE
+        )
+
+        activations = [
+            (
+                activation.upper(),
+                float(value)
+            )
+            for activation, value
+            in activation_matches
+        ]
+
+        activation_types = [
+            activation
+            for activation, value
+            in activations
+        ]
+
+
+        # --------------------------------------------------------
+        # EThcD
+        #
+        # Example:
+        # @etd123.04@hcd28.00
+        # --------------------------------------------------------
+
+        if (
+            "ETD" in activation_types
+            and
+            "HCD" in activation_types
+        ):
+
+            result["RAW Fragmentation"] = "ETHCD"
+
+            etd_value = next(
+                value
+                for activation, value in activations
+                if activation == "ETD"
+            )
+
+            hcd_value = next(
+                value
+                for activation, value in activations
+                if activation == "HCD"
+            )
+
+            result["RAW ETD parameter"] = etd_value
+
+            result[
+                "RAW Supplemental activation"
+            ] = "HCD"
+
+            result[
+                "RAW Collision energy"
+            ] = hcd_value
+
+
+        # --------------------------------------------------------
+        # ETciD
+        #
+        # Example:
+        # @etd123.04@cid35.00
+        # --------------------------------------------------------
+
+        elif (
+            "ETD" in activation_types
+            and
+            "CID" in activation_types
+        ):
+
+            result["RAW Fragmentation"] = "ETCID"
+
+            etd_value = next(
+                value
+                for activation, value in activations
+                if activation == "ETD"
+            )
+
+            cid_value = next(
+                value
+                for activation, value in activations
+                if activation == "CID"
+            )
+
+            result["RAW ETD parameter"] = etd_value
+
+            result[
+                "RAW Supplemental activation"
+            ] = "CID"
+
+            result[
+                "RAW Collision energy"
+            ] = cid_value
+
+
+        # --------------------------------------------------------
+        # Pure ETD
+        # --------------------------------------------------------
+
+        elif activation_types == ["ETD"]:
+
+            result["RAW Fragmentation"] = "ETD"
+
+            result[
+                "RAW ETD parameter"
+            ] = activations[0][1]
+
+
+        # --------------------------------------------------------
+        # Pure HCD
+        # --------------------------------------------------------
+
+        elif activation_types == ["HCD"]:
+
+            result["RAW Fragmentation"] = "HCD"
+
+            result[
+                "RAW Collision energy"
+            ] = activations[0][1]
+
+
+        # --------------------------------------------------------
+        # Pure CID
+        # --------------------------------------------------------
+
+        elif activation_types == ["CID"]:
+
+            result["RAW Fragmentation"] = "CID"
+
+            result[
+                "RAW Collision energy"
+            ] = activations[0][1]/100
+
+
+        # --------------------------------------------------------
+        # Fallback
+        # --------------------------------------------------------
+
+        else:
+
+            if "hcd" in text_lower:
+
+                result["RAW Fragmentation"] = "HCD"
+
+            elif "cid" in text_lower:
+
+                result["RAW Fragmentation"] = "CID"
+
+            elif "etd" in text_lower:
+
+                result["RAW Fragmentation"] = "ETD"
+
+
+        return result
+
+
+    # ============================================================
+    # 1. Load MaxQuant msms.txt
+    # ============================================================
+
+    print("=" * 70)
+    print("LOADING MAXQUANT msms.txt")
+    print("=" * 70)
+
+    msms = pd.read_csv(
+        input_file,
+        sep="\t",
+        low_memory=False
+    )
+
+    required_columns = [
+        "Raw file",
+        "Scan number"
+    ]
+
+    missing_columns = [
+        column
+        for column in required_columns
+        if column not in msms.columns
+    ]
+
+    if missing_columns:
+
+        raise ValueError(
+            "Missing required columns in msms.txt: "
+            f"{missing_columns}"
+        )
+
+    print(f"Total PSMs: {len(msms):,}")
+
+    print(
+        f"Unique raw files: "
+        f"{msms['Raw file'].nunique():,}"
+    )
+
+
+    # ------------------------------------------------------------
+    # Clean scan number
+    # ------------------------------------------------------------
+
+    msms["Scan number"] = pd.to_numeric(
+        msms["Scan number"],
+        errors="coerce"
+    )
+
+    invalid_scan_numbers = (
+        msms["Scan number"].isna().sum()
+    )
+
+    if invalid_scan_numbers > 0:
+
+        print(
+            f"WARNING: {invalid_scan_numbers:,} rows "
+            f"have invalid scan numbers."
+        )
+
+    msms = msms.dropna(
+        subset=[
+            "Raw file",
+            "Scan number"
+        ]
+    ).copy()
+
+    msms["Scan number"] = (
+        msms["Scan number"].astype(int)
+    )
+
+
+    # ============================================================
+    # 2. Process every unique raw file
+    # ============================================================
+
+    all_metadata = []
+
+    raw_files = sorted(
+        msms["Raw file"]
+        .dropna()
+        .unique()
+    )
+
+    print("\n" + "=" * 70)
+    print("PROCESSING .raw.msms FILES")
+    print("=" * 70)
+
+
+    for i, raw_file_name in enumerate(
+        raw_files,
+        start=1
+    ):
+
+        print(
+            f"\n[{i}/{len(raw_files)}] "
+            f"{raw_file_name}"
+        )
+
+        raw_msms_file = find_raw_msms_file(
+            raw_file_name
+        )
+
+        if raw_msms_file is None:
+
+            print(
+                "  WARNING: Corresponding "
+                ".raw.msms file not found."
+            )
+
+            continue
+
+        print(
+            f"  Found: {raw_msms_file.name}"
+        )
+
+
+        # --------------------------------------------------------
+        # Load required columns
+        # --------------------------------------------------------
+
+        try:
+
+            raw_df = pd.read_csv(
+                raw_msms_file,
+                usecols=[
+                    "scan_number",
+                    "scan_type"
+                ],
+                low_memory=False
+            )
+
+        except ValueError:
+
+            print(
+                "  WARNING: Required columns "
+                "'scan_number' and/or 'scan_type' "
+                "not found."
+            )
+
+            continue
+
+
+        # --------------------------------------------------------
+        # Clean scan number
+        # --------------------------------------------------------
+
+        raw_df["scan_number"] = pd.to_numeric(
+            raw_df["scan_number"],
+            errors="coerce"
+        )
+
+        raw_df = raw_df.dropna(
+            subset=["scan_number"]
+        ).copy()
+
+        raw_df["scan_number"] = (
+            raw_df["scan_number"].astype(int)
+        )
+
+
+        # --------------------------------------------------------
+        # Parse scan types
+        # --------------------------------------------------------
+
+        parsed = raw_df[
+            "scan_type"
+        ].apply(parse_scan_type)
+
+        parsed_df = pd.DataFrame(
+            parsed.tolist(),
+            index=raw_df.index
+        )
+
+        raw_df = pd.concat(
+            [
+                raw_df,
+                parsed_df
+            ],
+            axis=1
+        )
+
+
+        # --------------------------------------------------------
+        # Add MaxQuant-compatible raw file name
+        # --------------------------------------------------------
+
+        raw_df["Raw file"] = raw_file_name
+
+
+        # --------------------------------------------------------
+        # Keep only required metadata
+        # --------------------------------------------------------
+
+        raw_df = raw_df[
+            [
+                "Raw file",
+                "scan_number",
+                "RAW Scan type",
+                "RAW Mass analyzer",
+                "RAW Fragmentation",
+                "RAW Collision energy",
+                "RAW ETD parameter",
+                "RAW Supplemental activation"
+            ]
+        ]
+
+
+        # --------------------------------------------------------
+        # Restrict to scan numbers actually used by MaxQuant
+        #
+        # This can significantly reduce memory usage.
+        # --------------------------------------------------------
+
+        mq_scans = set(
+            msms.loc[
+                msms["Raw file"] == raw_file_name,
+                "Scan number"
+            ]
+        )
+
+        raw_df = raw_df[
+            raw_df["scan_number"].isin(
+                mq_scans
+            )
+        ]
+
+
+        print(
+            f"  Matching RAW spectra retained: "
+            f"{len(raw_df):,}"
+        )
+
+        all_metadata.append(raw_df)
+
+
+    # ============================================================
+    # 3. Combine metadata
+    # ============================================================
+
+    print("\n" + "=" * 70)
+    print("COMBINING ACQUISITION METADATA")
+    print("=" * 70)
+
+    if not all_metadata:
+
+        raise RuntimeError(
+            "No valid .raw.msms files could be loaded."
+        )
+
+    acquisition_metadata = pd.concat(
+        all_metadata,
+        ignore_index=True
+    )
+
+
+    # Ensure unique Raw file + scan_number pairs
+
+    duplicate_spectra = (
+        acquisition_metadata
+        .duplicated(
+            subset=[
+                "Raw file",
+                "scan_number"
+            ],
+            keep=False
+        )
+        .sum()
+    )
+
+    if duplicate_spectra > 0:
+
+        print(
+            f"WARNING: {duplicate_spectra:,} duplicate "
+            "Raw file + scan_number entries found."
+        )
+
+        acquisition_metadata = (
+            acquisition_metadata
+            .drop_duplicates(
+                subset=[
+                    "Raw file",
+                    "scan_number"
+                ],
+                keep="first"
+            )
+        )
+
+
+    print(
+        f"Total extracted RAW spectra: "
+        f"{len(acquisition_metadata):,}"
+    )
+
+
+    # ============================================================
+    # 4. Merge with MaxQuant
+    # ============================================================
+
+    print("\n" + "=" * 70)
+    print("MERGING WITH MAXQUANT msms.txt")
+    print("=" * 70)
+
+    annotated_msms = msms.merge(
+
+        acquisition_metadata,
+
+        left_on=[
+            "Raw file",
+            "Scan number"
+        ],
+
+        right_on=[
+            "Raw file",
+            "scan_number"
+        ],
+
+        how="left",
+
+        validate="many_to_one"
+    )
+
+
+    # ============================================================
+    # 5. Check fragmentation agreement
+    # ============================================================
+
+    if "Fragmentation" in annotated_msms.columns:
+
+        annotated_msms[
+            "Fragmentation match"
+        ] = (
+            annotated_msms[
+                "Fragmentation"
+            ]
+            .astype("string")
+            .str.upper()
+
+            ==
+
+            annotated_msms[
+                "RAW Fragmentation"
+            ]
+            .astype("string")
+            .str.upper()
+        )
+
+    else:
+
+        annotated_msms[
+            "Fragmentation match"
+        ] = pd.NA
+
+
+    # ============================================================
+    # 6. QC summary
+    # ============================================================
+
+    print("\n" + "=" * 70)
+    print("QC SUMMARY")
+    print("=" * 70)
+
+    total_psms = len(annotated_msms)
+
+    matched_raw = (
+        annotated_msms[
+            "RAW Fragmentation"
+        ]
+        .notna()
+        .sum()
+    )
+
+    print(f"Total PSMs: {total_psms:,}")
+
+    print(
+        f"PSMs matched to RAW metadata: "
+        f"{matched_raw:,} "
+        f"({matched_raw / total_psms * 100:.2f}%)"
+    )
+
+
+    if "Fragmentation" in annotated_msms.columns:
+
+        valid_comparison = annotated_msms[
+            annotated_msms[
+                "RAW Fragmentation"
+            ].notna()
+        ]
+
+        n_matching = (
+            valid_comparison[
+                "Fragmentation match"
+            ]
+            .sum()
+        )
+
+        print(
+            f"Fragmentation matches: "
+            f"{n_matching:,} / "
+            f"{len(valid_comparison):,} "
+            f"({n_matching / len(valid_comparison) * 100:.2f}%)"
+            if len(valid_comparison) > 0
+            else "No fragmentation matches available."
+        )
+
+
+    print(
+        "\nFragmentation / analyzer / energy:"
+    )
+
+    condition_summary = (
+        annotated_msms
+        .groupby(
+            [
+                "RAW Fragmentation",
+                "RAW Mass analyzer",
+                "RAW Collision energy"
+            ],
+            dropna=False
+        )
+        .size()
+        .reset_index(
+            name="n_PSMs"
+        )
+        .sort_values(
+            "n_PSMs",
+            ascending=False
+        )
+    )
+
+    print(
+        condition_summary.to_string(
+            index=False
+        )
+    )
+
+
+    # ============================================================
+    # 7. Display mismatches
+    # ============================================================
+
+    if "Fragmentation" in annotated_msms.columns:
+
+        mismatches = annotated_msms[
+            annotated_msms[
+                "RAW Fragmentation"
+            ].notna()
+            &
+            ~annotated_msms[
+                "Fragmentation match"
+            ]
+        ]
+
+        print(
+            f"\nFragmentation mismatches: "
+            f"{len(mismatches):,}"
+        )
+
+        if len(mismatches) > 0:
+
+            mismatch_columns = [
+                "Raw file",
+                "Scan number",
+                "Fragmentation",
+                "RAW Fragmentation",
+                "RAW Collision energy",
+                "RAW ETD parameter",
+                "RAW Scan type"
+            ]
+
+            available_columns = [
+                column
+                for column in mismatch_columns
+                if column in mismatches.columns
+            ]
+
+            print(
+                mismatches[
+                    available_columns
+                ]
+                .drop_duplicates()
+                .head(20)
+                .to_string(index=False)
+            )
+
+
+    # ============================================================
+    # 8. Save output
+    # ============================================================
+
+    print("\n" + "=" * 70)
+    print("WRITING OUTPUT")
+    print("=" * 70)
+
+    annotated_msms.to_csv(
+        output_file,
+        sep="\t",
+        index=False
+    )
+
+    print(
+        f"Annotated msms file saved to:\n"
+        f"{output_file.resolve()}"
+    )
+
+
+    # ============================================================
+    # 9. Return DataFrame
+    # ============================================================
+
+    return annotated_msms
+
 # ----------------------------------------------------------
 # Mapping of fragment -> index in Prosit intensity vector
 # Order:
@@ -271,8 +1081,7 @@ def parse_ion(annotation):
 def convert_msms_to_prosit(
     msms_file,
     output_file,
-    collision_energy=0.35,
-    fragmentation=2.0,
+    fragmentation_filter='HCD',
     residue="K",
     mod_code="cr",
     prob_col_name='Crotonyl (K) Probabilities',
@@ -281,7 +1090,9 @@ def convert_msms_to_prosit(
 ):
 
     df = pd.read_csv(msms_file, sep="\t", low_memory=False)
-
+    #only keep relevant frag type if filter is specified
+    if fragmentation_filter is not None :
+        df = df[df['RAW Fragmentation']==fragmentation_filter]
     results = []
 
     for _, row in df.iterrows():
@@ -377,7 +1188,7 @@ def convert_msms_to_prosit(
             "precursor_charge_onehot": charge_onehot(
                 precursor_charge
             ),
-            "collision_energy": collision_energy,
+            "collision_energy": row['RAW Collision energy'],
             "fragmentation": fragmentation
         })
 
