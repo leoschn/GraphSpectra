@@ -231,7 +231,7 @@ if __name__ == "__main__":
                   'P',
                   ]
 
-    mod_codefix duplicate PTMs_list=['fo',
+    mod_code_list=['fo',
                   'pr',
                   'ni',
                   'ac',
