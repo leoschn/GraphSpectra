@@ -287,6 +287,7 @@ if __name__ == "__main__":
 
 
     full_path = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2],'combined/txt/msms') for base_path in raw_msms_path_list]
+    raw_msms_dir_list = [os.path.join('/lustre/fsn1/projects/rech/bun/ucg81ws/data/pride/',base_path,base_path.split('_')[1]+'_'+base_path.split('_')[2]) for base_path in raw_msms_path_list]
     path_csv_list=[]
     for i in range(len(full_path)):
         print(full_path[i])
