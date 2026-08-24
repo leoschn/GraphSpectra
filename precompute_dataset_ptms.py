@@ -292,7 +292,7 @@ if __name__ == "__main__":
     for i in range(len(full_path)):
         print(full_path[i])
         annotate_msms_with_acquisition(input_file=full_path[i]+'.txt',raw_msms_dir=raw_msms_dir_list[i],output_file=full_path[i]+'_annotated.txt',)
-        convert_msms_to_prosit(msms_file=full_path[i]+'_annotated.txt',prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv',residue=residue_list[i],mod_code=mod_code_list[i],mod_code_modified=mod_cod_list_modified[i])
+        convert_msms_to_prosit(msms_file=full_path[i]+'_annotated.txt',prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv',residue=residue_list[i],mod_code=mod_code_list[i],mod_code_modified=mod_code_list_modified[i])
         path_csv_list.append(raw_msms_path_list[i]+'.csv')
 
     #merge all dataset
