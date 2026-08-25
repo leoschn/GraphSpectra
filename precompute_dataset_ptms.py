@@ -235,7 +235,7 @@ if __name__ == "__main__":
                   'pr',
                   'ni',
                   'ac',
-                  'gl'
+                  'gl',
                   'su',
                   'ci',
                   'ph',
