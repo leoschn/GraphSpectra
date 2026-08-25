@@ -349,6 +349,6 @@ if __name__ == "__main__":
 
     if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')):
         os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
-    preprocess_ptm_hierarchical_to_chunks('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
+    preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
     # 'test_output',
     # with_position=False,)
