@@ -1186,8 +1186,8 @@ def convert_msms_to_prosit(
 
         precursor_charge = int(row["Charge"])
 
-        intensity_vector = np.zeros(174, dtype=float)
-
+        intensity_norm_vector = np.zeros(174, dtype=float)
+        intensity_raw_vector= np.zeros(174, dtype=float)
         #set impossible config to -1 :
 
         impossible_index = np.full(174, False)
@@ -1206,7 +1206,8 @@ def convert_msms_to_prosit(
             impossible_index[2::6] = True
             impossible_index[5::6] = True
 
-        intensity_vector[impossible_index] = -1
+        intensity_norm_vector[impossible_index] = -1
+        intensity_raw_vector[impossible_index] = -1
 
         matches = str(row["Matches"]).split(";")
         intensities = str(row["Intensities"]).split(";")
@@ -1245,16 +1246,24 @@ def convert_msms_to_prosit(
             norm = inten / max_intensity
 
             # keep largest intensity if duplicated
-            if intensity_vector[idx] != -1:
-                intensity_vector[idx] = max(
-                    intensity_vector[idx],
+            if intensity_norm_vector[idx] != -1:
+                intensity_norm_vector[idx] = max(
+                    intensity_norm_vector[idx],
                     norm
                 )
+
+            if intensity_raw_vector[idx] != -1:
+                intensity_raw_vector[idx] = max(
+                    intensity_raw_vector[idx],
+                    inten
+                )
+
         if mod_code_modified != None:
             sequence.replace(residue+'('+mod_code+')',residue+'('+mod_code_modified+')')
 
         results.append({
-            "intensities": intensity_vector.tolist(),
+            "intensities_norm": intensity_norm_vector.tolist(),
+            "intensities_raw": intensity_raw_vector.tolist(),
             "sequence": sequence,
             "precursor_charge_onehot": charge_onehot(
                 precursor_charge
@@ -1287,3 +1296,55 @@ if __name__ == "__main__":
         high=0.95,
         prob_col_name='Formyl (K) Probabilities'
     )
+
+    df_prosit = pd.read_csv('../dataset_dummy/prosit_(cr)_2.csv')
+
+    # Convert string representations to lists
+    df_prosit["intensities_raw"] = df_prosit["intensities_raw"].apply(ast.literal_eval)
+
+    group_cols = [
+        "sequence",
+        "precursor_charge_onehot",
+        "collision_energy"
+    ]
+
+    # Element-wise mean
+    def mean_intensities(arrays):
+        return np.mean(np.vstack(arrays), axis=0).tolist()
+
+
+    # Normalize while preserving -1
+    def normalize_intensities(x):
+        x = np.array(x, dtype=float)
+
+        mask = x != -1
+
+        # Normalize only valid values
+        x[mask] = x[mask] / x[mask].max()
+
+        return x.tolist()
+
+    # Merge rows and compute mean raw intensities
+    merged = (
+        df_prosit.groupby(group_cols, as_index=False)
+        .agg({
+            "intensities_raw": mean_intensities
+        })
+    )
+
+    # Compute normalized intensities from averaged raw intensities
+    merged["intensities"] = merged["intensities_raw"].apply(
+        normalize_intensities
+    )
+
+    # Reorder columns
+    merged = merged[
+        [
+            "intensities",
+            "sequence",
+            "precursor_charge_onehot",
+            "collision_energy",
+        ]
+    ]
+
+    merged.to_csv('../dataset_dummy/prosit_(cr)_mean.csv',index=False)

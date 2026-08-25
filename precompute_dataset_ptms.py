@@ -284,8 +284,62 @@ if __name__ == "__main__":
     for i in range(len(full_path)):
         print('STARTING TO PROCESS',full_path[i])
         print(full_path[i])
-        annotate_msms_with_acquisition(input_file=full_path[i]+'.txt',raw_msms_dir=raw_msms_dir_list[i],output_file=full_path[i]+'_annotated.txt',)
+        annotate_msms_with_acquisition(input_file=full_path[i]+'.txt',raw_msms_dir=raw_msms_dir_list[i],output_file=full_path[i]+'_annotated.txt')
         convert_msms_to_prosit(msms_file=full_path[i]+'_annotated.txt',prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv',residue=residue_list[i],mod_code=mod_code_list[i],mod_code_modified=mod_code_list_modified[i])
+        df_prosit = pd.read_csv(raw_msms_path_list[i]+'.csv')
+
+        # Convert string representations to lists
+        df_prosit["intensities_raw"] = df_prosit["intensities_raw"].apply(ast.literal_eval)
+
+        group_cols = [
+            "sequence",
+            "precursor_charge_onehot",
+            "collision_energy"
+        ]
+
+
+        # Element-wise mean
+        def mean_intensities(arrays):
+            return np.mean(np.vstack(arrays), axis=0).tolist()
+
+
+        # Normalize while preserving -1
+        def normalize_intensities(x):
+            x = np.array(x, dtype=float)
+
+            mask = x != -1
+
+            # Normalize only valid values
+            x[mask] = x[mask] / x[mask].max()
+
+            return x.tolist()
+
+
+        # Merge rows and compute mean raw intensities
+        merged = (
+            df_prosit.groupby(group_cols, as_index=False)
+            .agg({
+                "intensities_raw": mean_intensities
+            })
+        )
+
+        # Compute normalized intensities from averaged raw intensities
+        merged["intensities"] = merged["intensities_raw"].apply(
+            normalize_intensities
+        )
+
+        # Reorder columns
+        merged = merged[
+            [
+                "intensities",
+                "sequence",
+                "precursor_charge_onehot",
+                "collision_energy",
+            ]
+        ]
+
+        merged.to_csv(raw_msms_path_list[i]+'.csv', index=False)
+
         path_csv_list.append(raw_msms_path_list[i]+'.csv')
 
     #merge all dataset
