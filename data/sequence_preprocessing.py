@@ -1259,7 +1259,7 @@ def convert_msms_to_prosit(
                 )
 
         if mod_code_modified != None:
-            sequence.replace(residue+'('+mod_code+')',residue+'('+mod_code_modified+')')
+            sequence=sequence.replace(residue+'('+mod_code+')',residue+'('+mod_code_modified+')')
 
         results.append({
             "intensities_norm": intensity_norm_vector.tolist(),
