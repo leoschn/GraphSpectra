@@ -1261,6 +1261,8 @@ def convert_msms_to_prosit(
         if mod_code_modified != None:
             sequence=sequence.replace(residue+'('+mod_code+')',residue+'('+mod_code_modified+')')
 
+        is_modified = '(' in sequence
+
         results.append({
             "intensities_norm": intensity_norm_vector.tolist(),
             "intensities_raw": intensity_raw_vector.tolist(),
@@ -1269,6 +1271,7 @@ def convert_msms_to_prosit(
                 precursor_charge
             ),
             "collision_energy": row['RAW Collision energy'],
+            "is_modified": is_modified,
         })
 
     out = pd.DataFrame(results)
@@ -1305,7 +1308,8 @@ if __name__ == "__main__":
     group_cols = [
         "sequence",
         "precursor_charge_onehot",
-        "collision_energy"
+        "collision_energy",
+        "is_modified",
     ]
 
     # Element-wise mean
@@ -1344,6 +1348,7 @@ if __name__ == "__main__":
             "sequence",
             "precursor_charge_onehot",
             "collision_energy",
+            "is_modified",
         ]
     ]
 
