@@ -23,7 +23,7 @@ CHUNK_SIZE = 2048
 BATCH_SIZE = 2048
 
 # Column names in the CSV. Adjust here if your CSV uses different headers.
-SEQUENCE_COL = "sequence"
+
 INTENSITIES_COL = "intensities"
 CHARGE_COL = "precursor_charge_onehot"
 ENERGY_COL = "collision_energy"
@@ -52,10 +52,10 @@ def parse_stringified_list(value):
     return np.asarray(value, dtype=np.float32)
 
 
-def load_sequences(df):
+def load_sequences(df,seq_col):
     return [
         str(sequence).strip().strip("_")
-        for sequence in df[SEQUENCE_COL].tolist()
+        for sequence in df[seq_col].tolist()
     ]
 
 
@@ -89,6 +89,7 @@ def preprocess_ptm_hierarchical_to_chunks(
     data_source,
     out_dir,
     with_position=True,
+    seq_col='sequence',
 ):
     os.makedirs(out_dir, exist_ok=True)
 
@@ -295,7 +296,8 @@ if __name__ == "__main__":
         group_cols = [
             "sequence",
             "precursor_charge_onehot",
-            "collision_energy"
+            "collision_energy",
+            "sequence_no_mod",
         ]
 
 
@@ -334,6 +336,7 @@ if __name__ == "__main__":
             [
                 "intensities",
                 "sequence",
+                "sequence_no_mod",
                 "precursor_charge_onehot",
                 "collision_energy",
             ]
@@ -350,6 +353,11 @@ if __name__ == "__main__":
 
     if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')):
         os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
-    preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
+    if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod')):
+        os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod')
+    preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms',seq_col='sequence')
+    preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv', with_position=False,
+                                          out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod',
+                                          seq_col='sequence_no_mod')
     # 'test_output',
     # with_position=False,)

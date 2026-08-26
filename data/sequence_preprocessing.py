@@ -1159,6 +1159,7 @@ def convert_msms_to_prosit(
     for _, row in df.iterrows():
 
         sequence = row["Modified sequence"]
+        sequence_no_mod = row["Sequence"]
 
         # Resolve Variable localization
         sequence = resolve_localized_modification(
@@ -1267,6 +1268,7 @@ def convert_msms_to_prosit(
             "intensities_norm": intensity_norm_vector.tolist(),
             "intensities_raw": intensity_raw_vector.tolist(),
             "sequence": sequence,
+            "sequence_no_mod":sequence_no_mod,
             "precursor_charge_onehot": charge_onehot(
                 precursor_charge
             ),
@@ -1310,6 +1312,7 @@ if __name__ == "__main__":
         "precursor_charge_onehot",
         "collision_energy",
         "is_modified",
+        "sequence_no_mod"
     ]
 
     # Element-wise mean
@@ -1346,6 +1349,7 @@ if __name__ == "__main__":
         [
             "intensities",
             "sequence",
+            "sequence_no_mod",
             "precursor_charge_onehot",
             "collision_energy",
             "is_modified",
