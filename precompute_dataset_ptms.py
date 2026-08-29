@@ -134,7 +134,7 @@ def preprocess_ptm_hierarchical_to_chunks(
         print(f"Processing {start}-{end}/{length}")
 
         batch_data = process_sequence_batch(
-            load_sequences(df_batch),
+            load_sequences(df_batch, seq_col),
             labels=load_intensities(df_batch),
             charge=load_charge(df_batch),
             energy=load_energy(df_batch),
