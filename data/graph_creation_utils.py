@@ -8,7 +8,7 @@ from rdkit.Chem import rdPartialCharges
 
 from collections import defaultdict
 
-from pICalculax import find_pKas, pI
+from data.pICalculax import find_pKas, pI
 
 from typing import Union, List
 import numpy as np
