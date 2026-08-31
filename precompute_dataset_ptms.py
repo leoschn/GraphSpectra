@@ -157,8 +157,129 @@ def preprocess_ptm_hierarchical_to_chunks(
     print("Preprocessing DONE")
 
 
+def split_dataframe_by_sequence(
+    df,
+    group_col="sequence_no_mod",
+    train_ratio=0.80,
+    val_ratio=0.10,
+    test_ratio=0.10,
+    seed=42,
+):
+    """
+    Split according to unique sequence_no_mod.
+
+    All spectra sharing the same underlying peptide sequence
+    are guaranteed to be in the same split.
+    """
+
+    assert np.isclose(
+        train_ratio + val_ratio + test_ratio,
+        1.0,
+    ), "Split ratios must sum to 1.0"
+
+    # Get unique underlying sequences
+    unique_sequences = (
+        df[group_col]
+        .astype(str)
+        .str.strip()
+        .unique()
+    )
+
+    # Shuffle reproducibly
+    rng = np.random.default_rng(seed)
+    rng.shuffle(unique_sequences)
+
+    n_sequences = len(unique_sequences)
+
+    n_train = int(n_sequences * train_ratio)
+    n_val = int(n_sequences * val_ratio)
+
+    train_sequences = set(
+        unique_sequences[:n_train]
+    )
+
+    val_sequences = set(
+        unique_sequences[n_train:n_train + n_val]
+    )
+
+    test_sequences = set(
+        unique_sequences[n_train + n_val:]
+    )
+
+    # Assign all spectra belonging to each sequence
+    train_df = df[
+        df[group_col].astype(str).isin(train_sequences)
+    ].copy()
+
+    val_df = df[
+        df[group_col].astype(str).isin(val_sequences)
+    ].copy()
+
+    test_df = df[
+        df[group_col].astype(str).isin(test_sequences)
+    ].copy()
+
+    # Safety checks
+    assert train_sequences.isdisjoint(val_sequences)
+    assert train_sequences.isdisjoint(test_sequences)
+    assert val_sequences.isdisjoint(test_sequences)
+
+    print("\n" + "=" * 60)
+    print("DATASET SPLIT SUMMARY")
+    print("=" * 60)
+
+    print(f"Total spectra: {len(df):,}")
+    print(f"Total unique sequences: {n_sequences:,}")
+
+    print()
+
+    print(
+        f"TRAIN: {len(train_df):,} spectra | "
+        f"{len(train_sequences):,} unique sequences"
+    )
+
+    print(
+        f"VAL:   {len(val_df):,} spectra | "
+        f"{len(val_sequences):,} unique sequences"
+    )
+
+    print(
+        f"TEST:  {len(test_df):,} spectra | "
+        f"{len(test_sequences):,} unique sequences"
+    )
+
+    print("=" * 60)
+
+    return train_df, val_df, test_df
 
 
+def verify_split(train_df, val_df, test_df):
+
+    train_seq = set(
+        train_df["sequence_no_mod"].astype(str)
+    )
+
+    val_seq = set(
+        val_df["sequence_no_mod"].astype(str)
+    )
+
+    test_seq = set(
+        test_df["sequence_no_mod"].astype(str)
+    )
+
+    assert train_seq.isdisjoint(val_seq), (
+        "ERROR: sequence leakage between TRAIN and VAL"
+    )
+
+    assert train_seq.isdisjoint(test_seq), (
+        "ERROR: sequence leakage between TRAIN and TEST"
+    )
+
+    assert val_seq.isdisjoint(test_seq), (
+        "ERROR: sequence leakage between VAL and TEST"
+    )
+
+    print("No sequence leakage detected!")
 
 if __name__ == "__main__":
     print("CHUNK_SIZE:", CHUNK_SIZE)
@@ -357,17 +478,234 @@ if __name__ == "__main__":
         path_csv_list.append(raw_msms_path_list[i]+'.csv')
 
     #merge all dataset
-    list_df = [pd.read_csv(path_csv_list[i]) for i in range(len(path_csv_list))]
-    df_complete = pd.concat(list_df)
-    df_complete.to_csv('df_21_ptms.csv', index=False)
+    print("\nMerging all PTM datasets...")
 
-    if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_agg')):
-        os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
-    if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod_no_agg')):
-        os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod')
-    preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_agg',seq_col='sequence')
-    preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv', with_position=False,
-                                          out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod_no_agg',
-                                          seq_col='sequence_no_mod')
+    list_df = [
+        pd.read_csv(path)
+        for path in path_csv_list
+    ]
+
+    df_complete = pd.concat(
+        list_df,
+        ignore_index=True,
+    )
+
+    df_complete.to_csv(
+        "df_21_ptms.csv",
+        index=False,
+    )
+
+    print(f"Total spectra: {len(df_complete):,}")
+
+    print(
+        f"Unique underlying sequences: "
+        f"{df_complete['sequence_no_mod'].nunique():,}"
+    )
+
+    # ============================================================
+    # CREATE 80 / 10 / 10 SPLIT
+    #
+    # IMPORTANT:
+    # Split using sequence_no_mod so spectra sharing the same
+    # underlying sequence always stay in the same split.
+    # ============================================================
+
+    train_df, val_df, test_df = split_dataframe_by_sequence(
+        df_complete,
+        group_col="sequence_no_mod",
+        train_ratio=0.80,
+        val_ratio=0.10,
+        test_ratio=0.10,
+        seed=42,
+    )
+
+    verify_split(
+        train_df,
+        val_df,
+        test_df,
+    )
+
+    # ============================================================
+    # SAVE CSV SPLITS
+    # ============================================================
+
+    split_csv_dir = (
+        "/lustre/fsn1/projects/rech/bun/ucg81ws/"
+        "df_21_ptms_splits"
+    )
+
+    os.makedirs(
+        split_csv_dir,
+        exist_ok=True,
+    )
+
+    train_csv = os.path.join(
+        split_csv_dir,
+        "train.csv",
+    )
+
+    val_csv = os.path.join(
+        split_csv_dir,
+        "val.csv",
+    )
+
+    test_csv = os.path.join(
+        split_csv_dir,
+        "test.csv",
+    )
+
+    train_df.to_csv(
+        train_csv,
+        index=False,
+    )
+
+    val_df.to_csv(
+        val_csv,
+        index=False,
+    )
+
+    test_df.to_csv(
+        test_csv,
+        index=False,
+    )
+
+    print("\nCSV splits saved:")
+    print("TRAIN:", train_csv)
+    print("VAL:", val_csv)
+    print("TEST:", test_csv)
+
+    # ============================================================
+    # OUTPUT DIRECTORIES
+    # ============================================================
+
+    # ---------- WITH PTM MODIFICATIONS ----------
+
+    mod_root = (
+        "/lustre/fsn1/projects/rech/bun/ucg81ws/"
+        "hr_graph_21_ptms_split"
+    )
+
+    mod_train_dir = os.path.join(
+        mod_root,
+        "train",
+    )
+
+    mod_val_dir = os.path.join(
+        mod_root,
+        "val",
+    )
+
+    mod_test_dir = os.path.join(
+        mod_root,
+        "test",
+    )
+
+    # ---------- WITHOUT PTM MODIFICATIONS ----------
+
+    no_mod_root = (
+        "/lustre/fsn1/projects/rech/bun/ucg81ws/"
+        "hr_graph_21_ptms_no_mod_split"
+    )
+
+    no_mod_train_dir = os.path.join(
+        no_mod_root,
+        "train",
+    )
+
+    no_mod_val_dir = os.path.join(
+        no_mod_root,
+        "val",
+    )
+
+    no_mod_test_dir = os.path.join(
+        no_mod_root,
+        "test",
+    )
+
+    # ============================================================
+    # PREPROCESS ALL PTMS - WITH MODIFICATIONS
+    #
+    # Uses the "sequence" column
+    # ============================================================
+
+    print("\n" + "=" * 60)
+    print("PROCESSING PTM DATASET - TRAIN")
+    print("=" * 60)
+
+    preprocess_ptm_hierarchical_to_chunks(
+        train_csv,
+        with_position=False,
+        out_dir=mod_train_dir,
+        seq_col="sequence",
+    )
+
+    print("\n" + "=" * 60)
+    print("PROCESSING PTM DATASET - VALIDATION")
+    print("=" * 60)
+
+    preprocess_ptm_hierarchical_to_chunks(
+        val_csv,
+        with_position=False,
+        out_dir=mod_val_dir,
+        seq_col="sequence",
+    )
+
+    print("\n" + "=" * 60)
+    print("PROCESSING PTM DATASET - TEST")
+    print("=" * 60)
+
+    preprocess_ptm_hierarchical_to_chunks(
+        test_csv,
+        with_position=False,
+        out_dir=mod_test_dir,
+        seq_col="sequence",
+    )
+
+    # ============================================================
+    # PREPROCESS ALL PTMS - WITHOUT MODIFICATIONS
+    #
+    # Uses the "sequence_no_mod" column
+    #
+    # IMPORTANT:
+    # The exact same train/val/test CSV files are used.
+    # Only the sequence representation changes.
+    # ============================================================
+
+    print("\n" + "=" * 60)
+    print("PROCESSING NO-MOD DATASET - TRAIN")
+    print("=" * 60)
+
+    preprocess_ptm_hierarchical_to_chunks(
+        train_csv,
+        with_position=False,
+        out_dir=no_mod_train_dir,
+        seq_col="sequence_no_mod",
+    )
+
+    print("\n" + "=" * 60)
+    print("PROCESSING NO-MOD DATASET - VALIDATION")
+    print("=" * 60)
+
+    preprocess_ptm_hierarchical_to_chunks(
+        val_csv,
+        with_position=False,
+        out_dir=no_mod_val_dir,
+        seq_col="sequence_no_mod",
+    )
+
+    print("\n" + "=" * 60)
+    print("PROCESSING NO-MOD DATASET - TEST")
+    print("=" * 60)
+
+    preprocess_ptm_hierarchical_to_chunks(
+        test_csv,
+        with_position=False,
+        out_dir=no_mod_test_dir,
+        seq_col="sequence_no_mod",
+    )
+
+    print("\n" + "=" * 60)
+    print("ALL DATASETS CREATED SUCCESSFULLY")
+    print("=" * 60)
     # 'test_output',
     # with_position=False,)
