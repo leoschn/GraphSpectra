@@ -288,59 +288,69 @@ if __name__ == "__main__":
         annotate_msms_with_acquisition(input_file=full_path[i]+'.txt',raw_msms_dir=raw_msms_dir_list[i],output_file=full_path[i]+'_annotated.txt')
         convert_msms_to_prosit(msms_file=full_path[i]+'_annotated.txt',prob_col_name=columns_name[i],output_file=raw_msms_path_list[i]+'.csv',residue=residue_list[i],mod_code=mod_code_list[i],mod_code_modified=mod_code_list_modified[i])
         df_prosit = pd.read_csv(raw_msms_path_list[i]+'.csv')
-        df_prosit = df_prosit[df_prosit['is_modified']]
+
+        # df_prosit = df_prosit[df_prosit['is_modified']]
 
         # Convert string representations to lists
-        df_prosit["intensities_raw"] = df_prosit["intensities_raw"].apply(ast.literal_eval)
-
-        group_cols = [
-            "sequence",
-            "precursor_charge_onehot",
-            "collision_energy",
-            "sequence_no_mod",
-        ]
-
-
-        # Element-wise mean
-        def mean_intensities(arrays):
-            return np.mean(np.vstack(arrays), axis=0).tolist()
-
-
-        # Normalize while preserving -1
-        def normalize_intensities(x):
-            x = np.array(x, dtype=float)
-
-            mask = x != -1
-
-            # Normalize only valid values
-            x[mask] = x[mask] / x[mask].max()
-
-            return x.tolist()
-
-
-        # Merge rows and compute mean raw intensities
-        merged = (
-            df_prosit.groupby(group_cols, as_index=False)
-            .agg({
-                "intensities_raw": mean_intensities
-            })
-        )
-
-        # Compute normalized intensities from averaged raw intensities
-        merged["intensities"] = merged["intensities_raw"].apply(
-            normalize_intensities
-        )
-
-        # Reorder columns
-        merged = merged[
-            [
-                "intensities",
-                "sequence",
-                "sequence_no_mod",
-                "precursor_charge_onehot",
-                "collision_energy",
-            ]
-        ]
+        # df_prosit["intensities_raw"] = df_prosit["intensities_raw"].apply(ast.literal_eval)
+        #
+        # group_cols = [
+        #     "sequence",
+        #     "precursor_charge_onehot",
+        #     "collision_energy",
+        #     "sequence_no_mod",
+        # ]
+        #
+        #
+        # # Element-wise mean
+        # def mean_intensities(arrays):
+        #     return np.mean(np.vstack(arrays), axis=0).tolist()
+        #
+        #
+        # # Normalize while preserving -1
+        # def normalize_intensities(x):
+        #     x = np.array(x, dtype=float)
+        #
+        #     mask = x != -1
+        #
+        #     # Normalize only valid values
+        #     x[mask] = x[mask] / x[mask].max()
+        #
+        #     return x.tolist()
+        #
+        #
+        # # Merge rows and compute mean raw intensities
+        # merged = (
+        #     df_prosit.groupby(group_cols, as_index=False)
+        #     .agg({
+        #         "intensities_raw": mean_intensities
+        #     })
+        # )
+        #
+        # # Compute normalized intensities from averaged raw intensities
+        # merged["intensities"] = merged["intensities_raw"].apply(
+        #     normalize_intensities
+        # )
+        #
+        # # Reorder columns
+        # merged = merged[
+        #     [
+        #         "intensities",
+        #         "sequence",
+        #         "sequence_no_mod",
+        #         "precursor_charge_onehot",
+        #         "collision_energy",
+        #     ]
+        # ]
+        df_prosit['intensities']=df_prosit['intensities_norm']
+        merged = df_prosit[
+                [
+                    "intensities",
+                    "sequence",
+                    "sequence_no_mod",
+                    "precursor_charge_onehot",
+                    "collision_energy",
+                ]]
 
         merged.to_csv(raw_msms_path_list[i]+'.csv', index=False)
 
@@ -351,13 +361,13 @@ if __name__ == "__main__":
     df_complete = pd.concat(list_df)
     df_complete.to_csv('df_21_ptms.csv', index=False)
 
-    if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')):
+    if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_agg')):
         os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms')
-    if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod')):
+    if not(os.path.exists('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod_no_agg')):
         os.mkdir('/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod')
-    preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms',seq_col='sequence')
+    preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv',with_position=False,out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_agg',seq_col='sequence')
     preprocess_ptm_hierarchical_to_chunks('df_21_ptms.csv', with_position=False,
-                                          out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod',
+                                          out_dir='/lustre/fsn1/projects/rech/bun/ucg81ws/hr_graph_21_ptms_no_mod_no_agg',
                                           seq_col='sequence_no_mod')
     # 'test_output',
     # with_position=False,)

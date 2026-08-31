@@ -1232,7 +1232,19 @@ def convert_msms_to_prosit(
         if len(parsed) == 0:
             continue
 
-        max_intensity = max(i for _, i in parsed)
+        valid_parsed = []
+        for p, inten in parsed:
+            # Unpack the tuple properly
+            ion_type, number, charge = p
+            idx = prosit_index(ion_type, number, charge)
+            if idx is not None:
+                valid_parsed.append((idx, inten))
+
+        if not valid_parsed:
+            continue
+
+        # Now max_intensity is strictly within the 174-dimension bounds
+        max_intensity = max(i for _, i in valid_parsed)
 
         if max_intensity == 0:
             continue
@@ -1302,58 +1314,58 @@ if __name__ == "__main__":
         prob_col_name='Formyl (K) Probabilities'
     )
 
-    df_prosit = pd.read_csv('../dataset_dummy/prosit_(cr)_2.csv')
+    # df_prosit = pd.read_csv('../dataset_dummy/prosit_(cr)_2.csv')
+    #
+    # # Convert string representations to lists
+    # df_prosit["intensities_raw"] = df_prosit["intensities_raw"].apply(ast.literal_eval)
+    #
+    # group_cols = [
+    #     "sequence",
+    #     "precursor_charge_onehot",
+    #     "collision_energy",
+    #     "is_modified",
+    #     "sequence_no_mod"
+    # ]
+    #
+    # # Element-wise mean
+    # def mean_intensities(arrays):
+    #     return np.mean(np.vstack(arrays), axis=0).tolist()
+    #
+    #
+    # # Normalize while preserving -1
+    # def normalize_intensities(x):
+    #     x = np.array(x, dtype=float)
+    #
+    #     mask = x != -1
+    #
+    #     # Normalize only valid values
+    #     x[mask] = x[mask] / x[mask].max()
+    #
+    #     return x.tolist()
+    #
+    # # Merge rows and compute mean raw intensities
+    # merged = (
+    #     df_prosit.groupby(group_cols, as_index=False)
+    #     .agg({
+    #         "intensities_raw": mean_intensities
+    #     })
+    # )
+    #
+    # # Compute normalized intensities from averaged raw intensities
+    # merged["intensities"] = merged["intensities_raw"].apply(
+    #     normalize_intensities
+    # )
+    #
+    # # Reorder columns
+    # merged = merged[
+    #     [
+    #         "intensities",
+    #         "sequence",
+    #         "sequence_no_mod",
+    #         "precursor_charge_onehot",
+    #         "collision_energy",
+    #         "is_modified",
+    #     ]
+    # ]
 
-    # Convert string representations to lists
-    df_prosit["intensities_raw"] = df_prosit["intensities_raw"].apply(ast.literal_eval)
-
-    group_cols = [
-        "sequence",
-        "precursor_charge_onehot",
-        "collision_energy",
-        "is_modified",
-        "sequence_no_mod"
-    ]
-
-    # Element-wise mean
-    def mean_intensities(arrays):
-        return np.mean(np.vstack(arrays), axis=0).tolist()
-
-
-    # Normalize while preserving -1
-    def normalize_intensities(x):
-        x = np.array(x, dtype=float)
-
-        mask = x != -1
-
-        # Normalize only valid values
-        x[mask] = x[mask] / x[mask].max()
-
-        return x.tolist()
-
-    # Merge rows and compute mean raw intensities
-    merged = (
-        df_prosit.groupby(group_cols, as_index=False)
-        .agg({
-            "intensities_raw": mean_intensities
-        })
-    )
-
-    # Compute normalized intensities from averaged raw intensities
-    merged["intensities"] = merged["intensities_raw"].apply(
-        normalize_intensities
-    )
-
-    # Reorder columns
-    merged = merged[
-        [
-            "intensities",
-            "sequence",
-            "sequence_no_mod",
-            "precursor_charge_onehot",
-            "collision_energy",
-            "is_modified",
-        ]
-    ]
-
-    merged.to_csv('../dataset_dummy/prosit_(cr)_mean.csv',index=False)
+    merged.to_csv('../dataset_dummy/prosit_(cr)_mean_2.csv',index=False)
