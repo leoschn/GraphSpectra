@@ -252,7 +252,8 @@ if __name__ == '__main__':
     best_loss = float('inf')
 
     if config.load_weigths != None:
-        model.load_state_dict(torch.load(config.load_weigths))
+        print('Loading weights from: ', config.load_weigths)
+        model.load_state_dict(torch.load(config.load_weigths, weights_only=True))
 
     if config.max_steps > 0 :
         print('Starting Training...')
@@ -324,7 +325,7 @@ if __name__ == '__main__':
 
     if config.max_steps > 0 :
         print("Loading best model...")
-        model.load_state_dict(torch.load(args.save_path))
+        model.load_state_dict(torch.load(args.save_path, weights_only=True))
 
     csv_path = os.path.splitext(args.save_path)[0] + "_predictions.csv"
 
