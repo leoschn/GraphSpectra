@@ -118,7 +118,7 @@ if __name__ == '__main__':
             "dataset_train": args.root_train,
             "scheduler":args.scheduler,
             "activation":args.activation,
-            "load_weigths":args.load_weigths,
+            "load_weights":args.load_weights,
         }
     )
 
@@ -252,8 +252,8 @@ if __name__ == '__main__':
     best_loss = float('inf')
 
     if config.load_weigths != None:
-        print('Loading weights from: ', config.load_weigths)
-        model.load_state_dict(torch.load(config.load_weigths, weights_only=True))
+        print('Loading weights from: ', config.load_weights)
+        model.load_state_dict(torch.load(config.load_weights, weights_only=True))
 
     if config.max_steps > 0 :
         print('Starting Training...')

@@ -20,7 +20,7 @@ def load_args():
     parser.add_argument('--dropout', type=float, default=0.)
     parser.add_argument('--activation', type=str, default=None)
     parser.add_argument('--scheduler', type=str, default='cosine')
-    parser.add_argument('--load_weigths', type=str, default=None)
+    parser.add_argument('--load_weights', type=str, default=None)
     args = parser.parse_args()
 
     return args
