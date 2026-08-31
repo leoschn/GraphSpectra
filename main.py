@@ -320,9 +320,11 @@ if __name__ == '__main__':
     # -----------------------
     # Test
     # -----------------------
-    print("Loading best model...")
 
-    model.load_state_dict(torch.load(args.save_path))
+
+    if config.max_steps > 0 :
+        print("Loading best model...")
+        model.load_state_dict(torch.load(args.save_path))
 
     csv_path = os.path.splitext(args.save_path)[0] + "_predictions.csv"
 
