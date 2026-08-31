@@ -118,6 +118,7 @@ if __name__ == '__main__':
             "dataset_train": args.root_train,
             "scheduler":args.scheduler,
             "activation":args.activation,
+            "load_weigths":args.load_weigths,
         }
     )
 
@@ -250,67 +251,71 @@ if __name__ == '__main__':
     # -----------------------
     best_loss = float('inf')
 
-    print('Starting Training...')
+    if config.load_weigths != None:
+        model.load_state_dict(torch.load(config.load_weigths))
 
-    pbar = tqdm(range(1, config.max_steps + 1), desc="Training")
+    if config.max_steps > 0 :
+        print('Starting Training...')
 
-    for step in pbar:
+        pbar = tqdm(range(1, config.max_steps + 1), desc="Training")
 
-        data = next(train_iter)
+        for step in pbar:
 
-        train_loss, median, batch_size = train_step(data)
+            data = next(train_iter)
 
-        pbar.set_postfix(train_loss=train_loss, median = median)
+            train_loss, median, batch_size = train_step(data)
 
-        # -----------------------
-        # Logging
-        # -----------------------
-        if step%100==0 : #to limit wandb sync size
-            wandb.log({
-                "step": step,
-                "train_loss": train_loss
-            })
-
-        # -----------------------
-        # Validation
-        # -----------------------
-        if step % config.eval_every == 0:
-
-            val_results = evaluate(val_loader, split="val")
-
-            val_loss = val_results["mean"]
-            val_median = val_results["median"]
-
-            if config.scheduler == 'plateau':
-                scheduler.step(val_loss)
-            elif config.scheduler == 'cosine':
-                scheduler.step()
-                current_lr = optimizer.param_groups[0]["lr"]
-
-            print(
-                f"\nStep {step:06d}"
-                f" | Train: {train_loss:.4f}"
-                f" | Val Mean: {val_loss:.4f}"
-                f" | Val Median: {val_median:.4f}"
-                f" | LR: {current_lr:.2e}"
-            )
-
-            wandb.log({
-                "step": step,
-                "val_mean": val_loss,
-                "val_median": val_median,
-                "lr": current_lr,
-            })
+            pbar.set_postfix(train_loss=train_loss, median = median)
 
             # -----------------------
-            # Save best model
+            # Logging
             # -----------------------
-            if val_loss < best_loss:
-                best_loss = val_loss
+            if step%100==0 : #to limit wandb sync size
+                wandb.log({
+                    "step": step,
+                    "train_loss": train_loss
+                })
 
-                torch.save(model.state_dict(), args.save_path)
+            # -----------------------
+            # Validation
+            # -----------------------
+            if step % config.eval_every == 0:
 
-                print(f"Best model saved at step {step}")
+                val_results = evaluate(val_loader, split="val")
+
+                val_loss = val_results["mean"]
+                val_median = val_results["median"]
+
+                if config.scheduler == 'plateau':
+                    scheduler.step(val_loss)
+                elif config.scheduler == 'cosine':
+                    scheduler.step()
+                    current_lr = optimizer.param_groups[0]["lr"]
+
+                print(
+                    f"\nStep {step:06d}"
+                    f" | Train: {train_loss:.4f}"
+                    f" | Val Mean: {val_loss:.4f}"
+                    f" | Val Median: {val_median:.4f}"
+                    f" | LR: {current_lr:.2e}"
+                )
+
+                wandb.log({
+                    "step": step,
+                    "val_mean": val_loss,
+                    "val_median": val_median,
+                    "lr": current_lr,
+                })
+
+                # -----------------------
+                # Save best model
+                # -----------------------
+                if val_loss < best_loss:
+                    best_loss = val_loss
+
+                    torch.save(model.state_dict(), args.save_path)
+
+                    print(f"Best model saved at step {step}")
 
     # -----------------------
     # Test
