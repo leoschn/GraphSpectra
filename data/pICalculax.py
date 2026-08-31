@@ -5,7 +5,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from numpy import unique, argmin
 from numpy import abs as np_abs
-from Rules import pkatable, condensedtable
+from data.Rules import pkatable, condensedtable
 
 def find_pKas(mol, pkatable=pkatable, condensedtable=condensedtable, debug=False, returnindices=False):
 	"""This function finds pKa values in a supplied molecule by matching it up to SMARTS rules in a table
