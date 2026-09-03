@@ -56,7 +56,7 @@ RESIDUES = {
     "K(cr)": "[*:1]N[C@@H](CCCCNC(=O)/C=C/C)C(=O)[*:2]",
 
     # Methylation
-    "K(me)": "[*:1]N[C@@H](CCCCNC)C(=O)O[*:2]",
+    "K(me)": "[*:1]N[C@@H](CCCCNC)C(=O)[*:2]",
 
     # Dimethylation
     "K(di)": "[*:1]N[C@@H](CCCCN(C)C)C(=O)[*:2]",
@@ -83,7 +83,7 @@ RESIDUES = {
     # Succinylation
     "K(su)": "[*:1]N[C@@H](CCCCNC(=O)CCC(=O)O)C(=O)[*:2]",
 
-    # # GlyGly remnant (ubiquitin)
+    # Glycylglycyl remnant (ubiquitin)
     "K(gy)": "[*:1]N[C@@H](CCCCNC(=O)CNC(=O)CN)C(=O)[*:2]", #modified name to avoid confusion with K(gl)
 
     # ---------------------- Arginine PTMs ----------------------
