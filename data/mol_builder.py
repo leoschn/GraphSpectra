@@ -111,7 +111,7 @@ RESIDUES = {
     # ---------------------- Tyrosine PTMs ----------------------
 
     # Nitration
-    "Y(ni)": "[*:1]N[C@@H](Cc1ccc(O)c([N+](=O)[O-])c1)C(=O)[*:2]",
+    "Y(ni)": "[*:1]N[C@@H](Cc1ccc(O)c([N](=O)[O])c1)C(=O)[*:2]",
 
     # Phosphorylation
     "Y(ph)": "[*:1]N[C@@H](Cc1ccc(OP(=O)(O)O)cc1)C(=O)[*:2]",

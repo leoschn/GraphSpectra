@@ -1,19 +1,20 @@
 """
-Dataset 1: ALL 21 PTMs, single 80/10/10 split.
+Dataset 3: unmodified-peptide baseline.
 
-Every spectrum from the 21 PTM search folders (WITH its modification --
-the no-PTM/unmodified-sequence counterpart that used to be produced
-alongside this has been removed, see git history) goes into one pool,
-split 80/10/10 by underlying unmodified sequence (`sequence_no_mod`) so
-that spectra sharing the same peptide backbone never straddle splits.
+Built from the 4 "no variable PTM searched" MaxQuant control folders
+(SEARCH_Kmod_Unmod, SEARCH_Rmod_Unmod, SEARCH_Ymod_Unmod,
+SEARCH_Pmod_Unmod) -- the same synthetic peptide library as the 21 PTM
+searches, run without a residue-specific modification in the search
+space. This gives a baseline, PTM-free dataset to compare against
+public (e.g. Prosit-style) training data.
 
-Graph features are computed once per spectrum into a shared feature
-store (`ptm_pipeline_common.ALL_PTMS_STORE_DIR`) that
-`precompute_dataset_ptm_holdout.py` (dataset 2) also reads from -- so if
-that script has already run (or runs later), the expensive
-`aa_ptm_to_pyg` graph construction is never repeated for the same
-spectrum. This script only performs feature computation for rows that
-aren't in the store yet.
+This is disjoint raw data from the 21 PTM searches (different raw
+files), so it gets its own feature store
+(`ptm_pipeline_common.UNMOD_STORE_DIR`) -- nothing to share/reuse with
+datasets 1/2 here, but features are still only computed once per
+spectrum (resumable feature store, same as the other two scripts).
+
+Split 80/10/10 by sequence, same leakage-safe grouping as datasets 1/2.
 
 This script only PREPARES the run -- see `if __name__ == "__main__"` at
 the bottom to actually launch it.
@@ -29,34 +30,33 @@ import ptm_pipeline_common as pc
 # ============================================================
 # OUTPUT LAYOUT
 # ============================================================
-SPLIT_CSV_DIR = os.path.join(pc.OUTPUT_ROOT, "csv", "dataset1_all_ptms_splits")
-DATASET_ROOT = os.path.join(pc.OUTPUT_ROOT, "datasets", "dataset1_all_ptms")
+SPLIT_CSV_DIR = os.path.join(pc.OUTPUT_ROOT, "csv", "dataset3_unmod_baseline_splits")
+DATASET_ROOT = os.path.join(pc.OUTPUT_ROOT, "datasets", "dataset3_unmod_baseline")
 
 
-def build_dataset1(force_rebuild_csv=False):
+def build_dataset3(force_rebuild_csv=False):
     print("CHUNK_SIZE:", pc.CHUNK_SIZE)
     print("BATCH_SIZE:", pc.BATCH_SIZE)
 
     # ------------------------------------------------------------
-    # 1. Raw MaxQuant searches -> per-PTM-type CSVs -> combined,
-    #    row_id-tagged df_21_ptms.csv (shared with dataset 2).
+    # 1. Raw "unmodified" MaxQuant searches -> per-source CSVs ->
+    #    combined, row_id-tagged df_unmod_baseline.csv.
     # ------------------------------------------------------------
-    if os.path.exists(pc.ALL_PTMS_CSV) and not force_rebuild_csv:
-        print(f"[skip] {pc.ALL_PTMS_CSV} already exists, reusing it")
-        df_complete = pd.read_csv(pc.ALL_PTMS_CSV)
+    if os.path.exists(pc.UNMOD_CSV) and not force_rebuild_csv:
+        print(f"[skip] {pc.UNMOD_CSV} already exists, reusing it")
+        df_complete = pd.read_csv(pc.UNMOD_CSV)
     else:
         csv_paths = pc.build_all_sources(
-            pc.PTM_SOURCES,
+            pc.UNMOD_SOURCES,
             pc.PRIDE_ROOT,
-            os.path.join(pc.OUTPUT_ROOT, "csv", "per_ptm_type"),
-            pc.build_ptm_type_csv,
+            os.path.join(pc.OUTPUT_ROOT, "csv", "per_unmod_source"),
+            pc.build_unmod_csv,
             force=force_rebuild_csv,
         )
-        df_complete = pc.combine_and_tag(csv_paths, pc.ALL_PTMS_CSV)
+        df_complete = pc.combine_and_tag(csv_paths, pc.UNMOD_CSV)
 
     print(f"Total spectra: {len(df_complete):,}")
     print(f"Unique underlying sequences: {df_complete['sequence_no_mod'].nunique():,}")
-    print(f"PTM types: {df_complete['ptm_type'].nunique()}")
 
     # ------------------------------------------------------------
     # 2. 80/10/10 split by underlying sequence.
@@ -82,37 +82,40 @@ def build_dataset1(force_rebuild_csv=False):
     print(f"\nCSV splits saved under: {SPLIT_CSV_DIR}")
 
     # ------------------------------------------------------------
-    # 3. Compute graph features ONCE for every spectrum (WITH its
-    #    modification) into the shared feature store.
+    # 3. Compute graph features ONCE per spectrum into this dataset's
+    #    own feature store (disjoint raw data from datasets 1/2, so
+    #    nothing to reuse there -- but still resumable/idempotent).
+    #    seq_col="sequence" here is equivalent to "sequence_no_mod"
+    #    for genuinely unmodified spectra; "sequence" is used so a
+    #    residual M(ox), if any, is still represented.
     # ------------------------------------------------------------
     print("\n" + "=" * 60)
-    print("FEATURE STORE: all 21 PTMs (WITH modifications)")
+    print("FEATURE STORE: unmodified baseline")
     print("=" * 60)
 
     pc.compute_feature_store(
         df_complete,
         seq_col="sequence",
-        store_dir=pc.ALL_PTMS_STORE_DIR,
+        store_dir=pc.UNMOD_STORE_DIR,
         with_position=False,
     )
 
     # ------------------------------------------------------------
-    # 4. Assemble the final train/val/test chunk directories by
-    #    gathering (not recomputing) from the feature store.
+    # 4. Assemble the final train/val/test chunk directories.
     # ------------------------------------------------------------
     for name, split_df in splits.items():
-        print(f"\n{'=' * 60}\nDATASET 1 - {name.upper()}\n{'=' * 60}")
+        print(f"\n{'=' * 60}\nDATASET 3 - {name.upper()}\n{'=' * 60}")
         pc.gather_rows_into_dataset(
             row_ids=split_df["row_id"].tolist(),
-            store_dir=pc.ALL_PTMS_STORE_DIR,
+            store_dir=pc.UNMOD_STORE_DIR,
             out_dir=os.path.join(DATASET_ROOT, name),
         )
 
     print("\n" + "=" * 60)
-    print("DATASET 1 (all 21 PTMs) CREATED SUCCESSFULLY")
+    print("DATASET 3 (unmodified baseline) CREATED SUCCESSFULLY")
     print(f"-> {DATASET_ROOT}")
     print("=" * 60)
 
 
 if __name__ == "__main__":
-    build_dataset1()
+    build_dataset3()
