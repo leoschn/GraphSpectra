@@ -255,7 +255,7 @@ if __name__ == '__main__':
     # -----------------------
     best_loss = float('inf')
 
-    if config.load_weigths != None:
+    if config.load_weights != None:
         print('Loading weights from: ', config.load_weights)
         model.load_state_dict(torch.load(config.load_weights, weights_only=True))
 
