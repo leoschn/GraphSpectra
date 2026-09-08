@@ -303,8 +303,11 @@ def process_batch_hierarchical(start, end, sequence, intensity, charge, energy, 
 
 
 class HierarchicalStreamingSpectraDataset(Dataset):
-    def __init__(self, root):
-        super().__init__(root)
+    def __init__(self, root, transform=None):
+        # `transform` (e.g. make_structure_transform(...) from
+        # graph_structure_views.py) is applied by PyG's base __getitem__
+        # after self.get(idx) -- used for the graph-structure ablation.
+        super().__init__(root, transform=transform)
 
         self.root = root
         meta_file = os.path.join(root, "meta.txt")

@@ -328,15 +328,23 @@ class Hierarchical_Cyclic_Sequential_GAT(nn.Module):
 
 class Hierarchical_Cyclic_Sequential_GAT_Global(nn.Module):
     """
-    Hierarchical Cyclic GNN with global readout (recommended model).
+    Hierarchical Cyclic GNN with global readout.
 
     Encoder — same cyclic bottom-up message passing as Hierarchical_Cyclic_Sequential_GAT.
 
     Readout — global (SetTransformer over AA nodes):
         Predicts all 174 bins simultaneously, capturing cross-position dependencies.
-        Combined with cyclic encoding, this is the most expressive architecture:
         - cyclic encoder: information refines iteratively across all hierarchy levels
         - global readout: all spectrum positions influence each other at prediction time
+
+    Model-ablation results (lr=5e-4, hidden_dim=256, num_layers=7, wandb project
+    graph-spectra, held-out test_loss) put this within noise of, or slightly
+    behind, the sequential encoder + global readout (Hierachical_Sequential_GAT_Global
+    / "hierarchical_GAT"): 0.1287±0.0022 vs 0.1235±0.0011 at 150k steps,
+    0.1092±0.0026 vs 0.1049±0.0017 at 600k -- despite this encoder running ~1.75x
+    more GAT blocks per layer. The global-vs-local readout choice is the effect
+    that actually matters (~0.012-0.019); cyclic vs sequential is not the one to
+    lead with.
     """
     def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128,
                  out_dim=174, num_layers=3, heads=4, dropout=0.2,

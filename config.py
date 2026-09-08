@@ -15,6 +15,14 @@ def load_args():
     parser.add_argument('--root_test', type=str, default='/lustre/fswork/projects/rech/bun/ucg81ws/these/GraphSpectra/dataset/processed_dataset/hierarchical_dataset/processed_graphs_holdout_hcd_hierarchical_dummy')
     parser.add_argument('--hidden_dim', type=int, default=128)
     parser.add_argument('--model_type', type=str, default='GAT')
+    parser.add_argument('--graph_structure', type=str, default='complete',
+                         choices=['complete', 'atom_aa', 'aa_only', 'atomic_only'],
+                         help="Graph-structure ablation condition. 'complete'/'atom_aa'/'aa_only' "
+                              "prune the hierarchical dataset (root_* must point to a hierarchical "
+                              "dataset) down to the requested node/edge subset before training a "
+                              "hierarchical model unchanged. 'atomic_only' is a distinct pipeline: "
+                              "it loads the flat atom-only dataset (root_* must point to a "
+                              "baseline_dataset) for use with --model_type GAT/local_GAT.")
     parser.add_argument('--num_layers', type=int, default=5)
     parser.add_argument('--num_timesteps', type=int, default=2)
     parser.add_argument('--dropout', type=float, default=0.)

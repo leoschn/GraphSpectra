@@ -2,7 +2,6 @@ from torch_geometric.nn import AttentiveFP, global_mean_pool, GAT
 from torch_geometric.nn.aggr import SetTransformerAggregation
 import torch.nn as nn
 import torch
-from egnn_clean.egnn_clean import EGNN
 from data.graph_creation_utils import get_edge_dim
 
 
@@ -27,30 +26,6 @@ class BaselineGAT(nn.Module):
 
     def forward(self, data):
         x = self.gnn(x=data.x, edge_index=data.edge_index, edge_attr=data.edge_attr, batch=data.batch)
-        x_read = self.readout(x,index=data.batch)
-        out = self.lin(x_read)
-        return out
-
-
-class EGNN_predictor(nn.Module):
-
-    def __init__(self, node_feat_dim=3, edge_feat_dim=3, hidden_dim=128, out_dim=174,num_layers=3):
-        super().__init__()
-
-        self.gnn = EGNN(
-            in_node_nf=node_feat_dim,
-            in_edge_nf=edge_feat_dim,
-            hidden_nf=hidden_dim,
-            n_layers=num_layers,
-            out_node_nf=hidden_dim,
-        )
-
-        self.readout = SetTransformerAggregation(channels=hidden_dim, heads=8)
-
-        self.lin = nn.Linear(hidden_dim, out_dim)
-
-    def forward(self, data):
-        x, _ = self.gnn(h=data.x, x=data.pos, edges=data.edge_index, edge_attr=data.edge_attr)
         x_read = self.readout(x,index=data.batch)
         out = self.lin(x_read)
         return out
