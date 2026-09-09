@@ -147,7 +147,7 @@ class _GlobalReadout(nn.Module):
         self.head    = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, out_dim),
+            nn.Linear(hidden_dim, out_dim), nn.LeakyReLU(),  # as for baseline Prosit's regressor output
         )
 
     def forward(self, h_aa, batch_aa):
@@ -193,7 +193,7 @@ class Hierachical_Sequential_GAT(nn.Module):
         self.aa_global_block  = _EdgeTypeGATBlock(hidden_dim, edge_feat_dim, heads, dropout)
         self.edge_head        = nn.Sequential(
             nn.Linear(3 * hidden_dim, hidden_dim), nn.ReLU(),
-            nn.Dropout(dropout), nn.Linear(hidden_dim, self.n_ions),
+            nn.Dropout(dropout), nn.Linear(hidden_dim, self.n_ions), nn.LeakyReLU(),  # as for baseline Prosit's regressor output
         )
 
     def forward(self, data):
@@ -285,7 +285,7 @@ class Hierarchical_Cyclic_Sequential_GAT(nn.Module):
         self.cycle_norms   = nn.ModuleList([nn.LayerNorm(hidden_dim) for _ in range(num_layers)])
         self.edge_head     = nn.Sequential(
             nn.Linear(3 * hidden_dim, hidden_dim), nn.ReLU(),
-            nn.Dropout(dropout), nn.Linear(hidden_dim, self.n_ions),
+            nn.Dropout(dropout), nn.Linear(hidden_dim, self.n_ions), nn.LeakyReLU(),  # as for baseline Prosit's regressor output
         )
 
     def _cycle(self, h, cycle, edges, is_atom, is_aa, is_global, delta):
